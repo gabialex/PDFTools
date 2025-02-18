@@ -1,5 +1,3 @@
-Overview
-
 PDF Tools is a Python-based application that provides functionality for handling PDF files. It includes features such as compressing PDFs and merging multiple PDFs into a single file. The application offers a graphical user interface (GUI) built using Tkinter, allowing users to easily perform these operations without command-line interaction.
 
 Features
