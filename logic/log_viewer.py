@@ -7,7 +7,7 @@ def view_logs(root):
     """Open a new window to display the content of compression_log.txt."""
     log_window = tk.Toplevel(root)
     log_window.title("Operations Logs")
-    log_window.geometry("1000x800")  # Increased size for better readability
+    log_window.geometry("1100x900")  # Increased size for better readability
     log_window.resizable(True, True)
     
 
@@ -29,7 +29,7 @@ def view_logs(root):
     type_label = ttk.Label(filter_frame, text="Filter by Type:")
     type_label.pack(side="left", padx=5)
     type_var = tk.StringVar(value="All")
-    type_dropdown = ttk.Combobox(filter_frame, textvariable=type_var, values=["All", "Info", "Error"], state="readonly")
+    type_dropdown = ttk.Combobox(filter_frame, textvariable=type_var, values=["All", "Info", "Error", "Warning"], state="readonly")
     type_dropdown.pack(side="left", padx=5)
 
     # Add a filter by date entry

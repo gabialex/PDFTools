@@ -391,9 +391,9 @@ class MergingOps:
         
         text_area = scrolledtext.ScrolledText(
             dialog,
-            width=60,
-            height=20,
-            font=("Consolas", 10),
+            width=90,
+            height=45,
+            font=("Segoe UI", 10),
             wrap=tk.WORD
         )
         text_area.pack(padx=10, pady=10, expand=True, fill="both")

@@ -15,8 +15,7 @@ class MainWindow(tk.Tk):
         super().__init__()
         self.title("PDF Tools")
         self.geometry("900x900")
-        self.minsize(900, 900)
-        
+        self.minsize(900, 900)        
 
         # Apply a theme
         self.style = ttk.Style()
