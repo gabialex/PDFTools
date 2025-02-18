@@ -132,6 +132,17 @@ class MergingOps:
         )
         self.merge_progress.pack(pady=10)
 
+        # Action button
+        self.start_merge_button = ttk.Button(
+            self.right_frame,
+            text="Start Merging",
+            command=self.start_merge,
+            style="Red.TButton",
+            state=tk.DISABLED
+        )
+        self.start_merge_button.pack(pady=10)
+        ToolTip(self.start_merge_button, "Begin merging process")
+
         # Progress labels
         self.current_merge_file_label = ttk.Label(
             self.right_frame,
@@ -147,18 +158,7 @@ class MergingOps:
             font=self.font,
             wraplength=400
         )
-        self.merge_status_label.pack(pady=5)
-
-        # Action button
-        self.start_merge_button = ttk.Button(
-            self.right_frame,
-            text="Start Merging",
-            command=self.start_merge,
-            style="Red.TButton",
-            state=tk.DISABLED
-        )
-        self.start_merge_button.pack(pady=10)
-        ToolTip(self.start_merge_button, "Begin merging process")
+        self.merge_status_label.pack(pady=5)        
 
     def setup_post_merge_controls(self):
         """Post-merge action controls."""
@@ -208,15 +208,24 @@ class MergingOps:
             self.output_folder = folder
             self.merge_status_label.config(text=f"Output folder: {folder}")
 
-    def start_merge(self): 
+    def start_merge(self):
         """Initiate merging process."""
+        # Validate basic inputs first (files selected and PDF extension)
         if not self._validate_inputs():
             return
 
+        # Get output path - returns None if user cancels folder selection
         output_file = self._get_output_path()
+        
+        # Check if user canceled output path selection
+        if not output_file:  # This is the critical new check
+            return  # Exit silently without error
+        
+        # Check file overwrite if path exists
         if not self._confirm_overwrite(output_file):
             return
 
+        # Proceed with merging
         self._prepare_for_merge(output_file)
         threading.Thread(target=self.merge_files_thread, args=(output_file,), daemon=True).start()
 
@@ -260,19 +269,28 @@ class MergingOps:
         return True
 
     def _get_output_path(self):
-        """Determine output file path."""
+        """Determine output file path. Returns None if user cancels."""
         if not self.output_folder:
-            first_file_dir = os.path.dirname(self.merge_files[0])
+            # Get directory of first file if no output folder selected
+            first_file = self.merge_files[0]
+            default_output_folder = os.path.dirname(first_file)
+            
+            # Ask for confirmation
             if not messagebox.askokcancel(
                 "No Output Folder",
-                f"Use original file directory?\n{first_file_dir}"
+                f"Files will be merged into:\n{default_output_folder}\nProceed?"
             ):
-                return None
-            return os.path.join(first_file_dir, self.output_name_var.get())
-        return os.path.join(self.output_folder, self.output_name_var.get())
+                return None  # Explicitly return None on cancel
+            
+            return os.path.join(default_output_folder, self.output_name_var.get())
+        
+        return os.path.join(self.output_folder, self.output_name_var.get())                             
 
     def _confirm_overwrite(self, path):
         """Handle existing file overwrite confirmation."""
+        if not path:  # Add this check first
+            return False
+        
         if os.path.exists(path):
             return messagebox.askyesno(
                 "Overwrite File",
