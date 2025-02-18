@@ -24,8 +24,8 @@ class MergingOps:
 
     def setup_merging_ui(self, parent):
         """Set up merging UI components."""
-        self.right_frame = ttk.Frame(parent)
-        self.right_frame.pack(side="left", fill="both", expand=True, padx=10, pady=5)
+        self.middle_frame = ttk.Frame(parent)
+        self.middle_frame.pack(side="left", fill="both", expand=True, padx=10, pady=5)
 
         # UI components setup
         self.setup_header()
@@ -38,14 +38,14 @@ class MergingOps:
     # --------------------- UI Component Setup Methods ---------------------
     def setup_header(self):
         """Main header for merging section."""
-        self.merge_label = ttk.Label(self.right_frame, text="Merge PDF Files", style="Blue.TLabel")
+        self.merge_label = ttk.Label(self.middle_frame, text="Merge PDF Files", style="Blue.TLabel")
         self.merge_label.pack(pady=3)
 
     def setup_file_selection(self):
         """File selection controls."""
         # File selection button
         self.select_merge_files_button = ttk.Button(
-            self.right_frame,
+            self.middle_frame,
             text="Select PDFs to Merge",
             command=self.select_merge_files
         )
@@ -54,8 +54,8 @@ class MergingOps:
 
         # Selected files counter
         self.merge_status_label_selected = ttk.Label(
-            self.right_frame,
-            text="0 PDF files selected to merge",
+            self.middle_frame,
+            text="No files selected yet",
             font=self.font,
             wraplength=400
         )
@@ -66,7 +66,7 @@ class MergingOps:
         # Compression checkbox
         self.compress_before_merge_var = tk.BooleanVar(value=False)
         self.compress_checkbox = ttk.Checkbutton(
-            self.right_frame,
+            self.middle_frame,
             text="Compress files before merging",
             variable=self.compress_before_merge_var,
             command=self.toggle_compress_options
@@ -76,7 +76,7 @@ class MergingOps:
 
         # Compression level radio buttons
         self.merge_compression_level_var = tk.StringVar(value="medium")
-        self.compression_frame = ttk.Frame(self.right_frame)
+        self.compression_frame = ttk.Frame(self.middle_frame)
         self.compression_frame.pack(pady=5)
         
         for text, value in [("High", "high"), ("Medium", "medium"), ("Low", "low")]:
@@ -90,7 +90,7 @@ class MergingOps:
         # Delete originals checkbox
         self.delete_after_merge_var = tk.BooleanVar(value=False)
         self.delete_checkbox = ttk.Checkbutton(
-            self.right_frame,
+            self.middle_frame,
             text="Delete original files after merging",
             variable=self.delete_after_merge_var
         )
@@ -103,27 +103,34 @@ class MergingOps:
         """Output destination controls."""
         # Output folder selection
         self.select_output_folder_button = ttk.Button(
-            self.right_frame,
+            self.middle_frame,
             text="Select Output Folder",
             command=self.select_output_folder
         )
         self.select_output_folder_button.pack(pady=10)
         ToolTip(self.select_output_folder_button, "Choose where to save merged PDF")
 
-        # Output filename entry
+        # Output filename entry in frame
+        self.output_filename_frame = ttk.Frame(self.middle_frame)
+        self.output_filename_frame.pack(pady=3)
+
+        #Label
+        ttk.Label(self.output_filename_frame, text = "Name your filename ").pack(side='left', pady=5)
+
+        #Entry
         self.output_name_var = tk.StringVar(value="merged_file.pdf")
         self.output_entry = ttk.Entry(
-            self.right_frame,
+            self.output_filename_frame,
             textvariable=self.output_name_var,
-            width=25,
+            width=15,            
             font=self.font
         )
-        self.output_entry.pack(pady=5)
+        self.output_entry.pack(side='left', pady=5)
         ToolTip(self.output_entry, "Name for merged PDF file")
 
     def setup_progress_indicators(self):
         """Progress bar and status labels."""
-        self.merge_progress_frame = ttk.Frame(self.right_frame)
+        self.merge_progress_frame = ttk.Frame(self.middle_frame)
         self.merge_progress_frame.pack(pady=20)
 
         self.merge_progress = ttk.Progressbar(self.merge_progress_frame,
@@ -138,7 +145,7 @@ class MergingOps:
 
         # Action button
         self.start_merge_button = ttk.Button(
-            self.right_frame,
+            self.middle_frame,
             text="Start Merging",
             command=self.start_merge,
             style="Red.TButton",
@@ -149,7 +156,7 @@ class MergingOps:
 
         # Progress labels
         self.current_merge_file_label = ttk.Label(
-            self.right_frame,
+            self.middle_frame,
             text="Current File: None",
             font=self.font,
             wraplength=400
@@ -157,7 +164,7 @@ class MergingOps:
         self.current_merge_file_label.pack(pady=5)
 
         self.merge_status_label = ttk.Label(
-            self.right_frame,
+            self.middle_frame,
             text="Waiting to start...",
             font=self.font,
             wraplength=400
@@ -166,7 +173,7 @@ class MergingOps:
 
     def setup_post_merge_controls(self):
         """Post-merge action controls."""
-        button_frame = ttk.Frame(self.right_frame)
+        button_frame = ttk.Frame(self.middle_frame)
         button_frame.pack(pady=10)
 
         self.open_merged_file_button = ttk.Button(

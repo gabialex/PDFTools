@@ -80,14 +80,16 @@ class CompressionOps:
         ]
 
         for label_text, var_name, default, min_val, max_val in settings:
+            # Create a frame for batch elements
             self.batch_frame = ttk.Frame(self.left_frame)
             self.batch_frame.pack(pady=3)
-            # Create a frame for batch elements
-            ttk.Label(self.batch_frame, text=label_text).pack(side='left', pady=5)
-            
+
+            #Label
+            ttk.Label(self.batch_frame, text=label_text).pack(side='left', pady=5)            
             var = tk.DoubleVar(value=default) if "pause" in var_name else tk.IntVar(value=default)
             setattr(self, var_name, var)
             
+            # Entries
             entry = ttk.Entry(self.batch_frame, textvariable=var, width=5)
             entry.pack(side='left', padx=5, pady=5)
             ToolTip(entry, f"Value between {min_val}-{max_val}")
