@@ -122,15 +122,19 @@ class MergingOps:
         ToolTip(self.output_entry, "Name for merged PDF file")
 
     def setup_progress_indicators(self):
-        """Progress tracking components."""
-        # Progress bar
-        self.merge_progress = ttk.Progressbar(
-            self.right_frame,
+        """Progress bar and status labels."""
+        self.merge_progress_frame = ttk.Frame(self.right_frame)
+        self.merge_progress_frame.pack(pady=20)
+
+        self.merge_progress = ttk.Progressbar(self.merge_progress_frame,
             orient="horizontal",
             length=300,
             mode="determinate"
         )
-        self.merge_progress.pack(pady=10)
+        self.merge_progress.pack(side="left", padx=5)
+
+        self.progress_percentage_label = ttk.Label(self.merge_progress_frame, text="0%")
+        self.progress_percentage_label.pack(side="left", padx=5)
 
         # Action button
         self.start_merge_button = ttk.Button(
@@ -314,6 +318,8 @@ class MergingOps:
             
         self.current_merge_file_label.config(text=f"Processing: {filename}")
         self.merge_progress["value"] = progress
+        percentage = int((progress / len(self.merge_files)) * 100)
+        self.progress_percentage_label.config(text=f"{percentage}%")
         self.merge_status_label.config(
             text=f"Merging file {progress} of {len(self.merge_files)}"
         )
