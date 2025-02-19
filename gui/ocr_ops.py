@@ -45,7 +45,7 @@ class OCROpsFrame(ttk.Frame):
         self.selected_files_label.grid(row=7, column=0, columnspan=3, pady=5)
 
         # Scrollable Text Widget for displaying messages
-        self.message_text = tk.Text(self.ocr_frame, height=30, width=45, wrap="word", state="disabled")
+        self.message_text = tk.Text(self.ocr_frame, height=34, width=45, wrap="word", state="disabled")
         self.message_text.grid(row=9, column=0, columnspan=3, pady=5)
 
         # Adding a vertical scrollbar for the text area
@@ -79,14 +79,107 @@ class OCROpsFrame(ttk.Frame):
         ToolTip(folder_button, "Browse and select a folder for batch OCR", delay=500)
 
     def select_folder(self):
-        """Open folder dialog for selecting a folder of PDFs."""
+        """Open folder dialog and include subfolders"""
         folder_path = filedialog.askdirectory()
         if folder_path:
             self.input_entry.delete(0, tk.END)
             self.input_entry.insert(0, folder_path)
+            
+            # Clear previous files
+            self.file_paths = []
+            
+            # Recursively search for PDF files
+            for root, dirs, files in os.walk(folder_path):
+                for file in files:
+                    if file.lower().endswith('.pdf'):
+                        full_path = os.path.join(root, file)
+                        self.file_paths.append(full_path)
+            
+            # Check for existing OCR files
+            self.check_existing_outputs()
+            self.update_file_display()
 
-            # Update the selected files label with the folder path
-            self.selected_files_label.config(text=f"Selected folder: {folder_path}")
+    def check_existing_outputs(self):
+        """Check for existing OCR result files"""
+        existing_files = []
+        for pdf_path in self.file_paths:
+            output_filename = f"OCR_{os.path.splitext(os.path.basename(pdf_path))[0]}.pdf.txt"
+            output_path = os.path.join(os.path.dirname(pdf_path), output_filename)
+            if os.path.exists(output_path):
+                existing_files.append(output_path)
+
+        if existing_files:
+            response = self.show_overwrite_warning(existing_files)
+            
+            if response is None:  # Cancel
+                self.file_paths = []
+                return
+            elif not response:  # Skip existing
+                # Filter out files with existing outputs
+                self.file_paths = [
+                    fp for fp in self.file_paths
+                    if not os.path.exists(
+                        os.path.join(os.path.dirname(fp),
+                        f"OCR_{os.path.splitext(os.path.basename(fp))[0]}.pdf.txt")
+                    )]
+
+    def update_file_display(self):
+        """Update file display with folder structure"""
+        self.message_text.config(state="normal")
+        self.message_text.delete(1.0, tk.END)
+        
+        if not self.file_paths:
+            self.selected_files_label.config(text="No files selected yet")
+            self.message_text.config(state="disabled")
+            return
+        
+        max_display = 10  # Number of files to show before truncating
+        common_root = os.path.commonpath(self.file_paths)
+        
+        # Display folder structure
+        self.message_text.insert(tk.END, f"Selected folder: {common_root}\n\n")
+        self.message_text.insert(tk.END, "Files found:\n")
+        
+        # Organize files by their relative path
+        file_tree = {}
+        for fp in self.file_paths:
+            rel_path = os.path.relpath(fp, common_root)
+            parts = os.path.split(rel_path)
+            
+            if len(parts) > 1:  # File is in a subfolder
+                folder = parts[0]
+                filename = parts[1]
+                if folder not in file_tree:
+                    file_tree[folder] = []
+                file_tree[folder].append(filename)
+            else:  # File is in root folder
+                if "_root" not in file_tree:
+                    file_tree["_root"] = []
+                file_tree["_root"].append(rel_path)
+        
+        # Display the file tree
+        displayed = 0
+        for folder, files in file_tree.items():
+            if folder != "_root":
+                self.message_text.insert(tk.END, f"\n📁 {folder}/\n")
+            
+            for i, file in enumerate(sorted(files)):
+                if displayed >= max_display:
+                    remaining = len(self.file_paths) - max_display
+                    self.message_text.insert(tk.END, f"\n...and {remaining} more files")
+                    break
+                
+                display_text = f"  • {file}" if folder != "_root" else f"• {file}"
+                self.message_text.insert(tk.END, f"{display_text}\n")
+                displayed += 1
+            
+            if displayed >= max_display:
+                break
+        
+        self.message_text.config(state="disabled")
+        self.selected_files_label.config(
+            text=f"{len(self.file_paths)} file{'s' if len(self.file_paths) > 1 else ''} found in folder and subfolders"
+        )
 
     def setup_ocr_language_selection(self):
         """Language selection for OCR."""
@@ -197,7 +290,7 @@ class OCROpsFrame(ttk.Frame):
                 # Skip existing files if not overwriting
                 if not self.overwrite_files and os.path.exists(output_path):
                     self.after(0, self.update_message, 
-                              f"Skipped existing file: {output_filename}", "warning")
+                              f"\nSkipped existing file: {output_filename}\n", "warning")
                     continue
 
                 # Actual processing
@@ -216,7 +309,6 @@ class OCROpsFrame(ttk.Frame):
         self.selected_files_label.config(text="OCR process complete")
 
     def process_files(self, file_paths, language):
-        """Modified process_files with existing file check"""
         total_files = len(file_paths)
         self.progress_bar["maximum"] = total_files
         self.progress_bar["value"] = 0
@@ -231,9 +323,11 @@ class OCROpsFrame(ttk.Frame):
 
         # Show warning if any existing files found
         if existing_files:
-            if not self.show_overwrite_warning(existing_files):
+            response = self.show_overwrite_warning(existing_files)
+            if response is None:  # Cancel
                 self.update_message("OCR processing canceled by user", "warning")
                 return
+            self.overwrite_files = response  # True=Overwrite, False=Skip
 
         # Process files with overwrite flag
         try:
@@ -245,7 +339,7 @@ class OCROpsFrame(ttk.Frame):
                 # Skip existing files if not overwriting
                 if not self.overwrite_files and os.path.exists(output_path):
                     self.after(0, self.update_message, 
-                              f"Skipped existing file: {output_filename}", "warning")
+                              f"\nSkipped existing file: {output_filename}\n", "warning")
                     continue
 
                 # Actual processing
@@ -256,7 +350,7 @@ class OCROpsFrame(ttk.Frame):
                 percent = int((processed_count / total_files) * 100)
                 self.after(0, self.update_progress, processed_count, percent)
                 self.after(0, self.update_message, 
-                          f"Processed: {os.path.basename(pdf_path)}\nSaved to: {final_path}", "success")
+                          f"\nProcessed: {os.path.basename(pdf_path)}\nSaved to: {final_path}", "success")
 
         except Exception as e:
             self.after(0, self.update_message, f"Error: {str(e)}", "error")
@@ -264,29 +358,49 @@ class OCROpsFrame(ttk.Frame):
         self.selected_files_label.config(text="OCR process complete")
 
     def show_overwrite_warning(self, existing_files):
-        """Show overwrite confirmation dialog"""
-        file_list = "\n".join(os.path.basename(f) for f in existing_files[:3])
-        if len(existing_files) > 3:
-            file_list += f"\n...and {len(existing_files)-3} more files"
+        """Custom dialog with renamed buttons"""
+        dialog = tk.Toplevel(self)
+        dialog.title("Existing Files Found")
+        dialog.transient(self)  # Set to main window
+        dialog.grab_set()  # Make dialog modal
 
-        response = messagebox.askyesnocancel(
-            "Existing OCR Files Found",
-            f"Found {len(existing_files)} existing OCR result files:\n\n{file_list}\n\n"
-            "How would you like to proceed?\n"
-            "Yes = Overwrite all\n"
-            "No = Skip existing files\n"
-            "Cancel = Abort processing",
-            icon=messagebox.WARNING
-        )
+        # Create message content
+        max_display = 10
+        file_list = "\n".join(f"• {os.path.basename(f)}" for f in existing_files[:max_display])
+        if len(existing_files) > max_display:
+            remaining = len(existing_files) - max_display
+            file_list += f"\n...and {remaining} more file{'s' if remaining > 1 else ''}"
 
-        if response is None:  # Cancel
-            return False
-        elif response:  # Overwrite all
-            self.overwrite_files = True
-            return True
-        else:  # Skip existing
-            self.overwrite_files = False
-            return True   
+        msg = ttk.Label(dialog, text=f"Found {len(existing_files)} existing files:\n\n{file_list}")
+        msg.pack(padx=20, pady=10)
+
+        # Response variable: True=Overwrite, False=Skip, None=Cancel
+        response = None
+
+        # Custom buttons
+        btn_frame = ttk.Frame(dialog)
+        
+        def set_response(value):
+            nonlocal response
+            response = value
+            dialog.destroy()
+        
+        ttk.Button(btn_frame, text="Overwrite", 
+                command=lambda: set_response(True)).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="Skip", 
+                command=lambda: set_response(False)).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="Cancel", 
+                command=lambda: set_response(None)).pack(side=tk.LEFT, padx=5)
+        
+        btn_frame.pack(pady=10)
+        
+        self.wait_window(dialog)
+        return response
+    
+    def set_response(self, response, dialog):
+        """Handle button clicks"""
+        self.overwrite_response = response
+        dialog.destroy()
 
     def update_progress(self, value, percent):
         """Update progress bar and percentage label"""
