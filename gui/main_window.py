@@ -9,13 +9,14 @@ from .compression_ops import CompressionOps
 from .merging_ops import MergingOps
 from .utils import ToolTip
 from gui.utils import configure_tooltip_styles
+from .ocr_ops import OCROpsFrame
 
 class MainWindow(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("PDF Tools")
-        self.geometry("900x900")
-        self.minsize(900, 900)
+        self.geometry("1250x900")
+        self.minsize(1250, 900)
 
         # Initialize style
         self.style = ttk.Style()
@@ -25,7 +26,7 @@ class MainWindow(tk.Tk):
         self.colors = {
             'light': {
                 'bg': 'white',
-                'fg': 'gray',
+                'fg': 'black',
                 'button': '#ffffff',
                 'button_pressed': '#e0e0e0',
                 'accent': '#007acc',
@@ -47,6 +48,7 @@ class MainWindow(tk.Tk):
         self.compression_ops = CompressionOps(self)
         self.merging_ops = MergingOps(self)
         configure_tooltip_styles(self.style)
+        self.ocr_ops = OCROpsFrame(self, controller=self)
         
         # Set initial theme
         self.current_theme = 'light'
@@ -87,6 +89,14 @@ class MainWindow(tk.Tk):
 
         # Right Column: Merge PDFs
         self.merging_ops.setup_merging_ui(self.main_frame)
+
+        # Vertical Separator after merging
+        self.separator2 = ttk.Separator(self.main_frame, orient="vertical")
+        self.separator2.pack(side="left", fill="y", padx=20)
+
+        # OCR Column        
+        #self.ocr_ops.pack(side="left", fill="y", expand=True)
+        self.ocr_ops.setup_ocr_ui(self.main_frame)
 
     def setup_top_right_buttons(self):
         """Set up the top-right buttons with improved styling."""

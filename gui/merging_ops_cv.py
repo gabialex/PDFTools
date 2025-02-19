@@ -239,10 +239,6 @@ class MergingOps:
         dialog.grab_set()
         dialog.wait_window()
 
-
-
-
-
     # Function to select PDFs to merge
     def select_merge_files(self):
         files = filedialog.askopenfilenames(title="Select PDF Files to Merge", filetypes=[("PDF files", "*.pdf")])
@@ -256,7 +252,6 @@ class MergingOps:
         self.output_folder = filedialog.askdirectory(title="Select Output Folder")
         if self.output_folder:
             self.merge_status_label.config(text=f"Output folder: {self.output_folder}")
-
 
     # Function to start merging
     def start_merge(self):
