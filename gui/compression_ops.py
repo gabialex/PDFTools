@@ -49,7 +49,7 @@ class CompressionOps:
         self.select_buttons_frame.pack(pady=10)
 
         buttons = [
-            ("Select Directory", self.select_directory, "Choose a directory containing PDF files"),
+            ("Select Folder", self.select_directory, "Choose a directory containing PDF files"),
             ("Select Files", self.select_files, "Choose individual PDF files")
         ]
 
