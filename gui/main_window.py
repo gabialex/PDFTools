@@ -15,8 +15,8 @@ class MainWindow(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("PDF Tools")
-        self.geometry("1300x1020")
-        self.minsize(1300, 1020)
+        self.geometry("1500x1020")
+        self.minsize(1500, 1020)
 
         # Initialize style
         self.style = ttk.Style()
@@ -83,19 +83,19 @@ class MainWindow(tk.Tk):
         # Left Column: Compress PDFs
         self.compression_ops.setup_compression_ui(self.main_frame)
 
-        # Vertical Separator with themed color
+        '''# Vertical Separator with themed color
         self.separator = ttk.Separator(self.main_frame, orient="vertical")
-        self.separator.pack(side="left", fill="y", padx=20)
+        self.separator.pack(side="left", fill="y", padx=20)'''
 
-        # Right Column: Merge PDFs
+        # Right Column: Merge /Split PDFs
         self.merging_ops.setup_merging_ui(self.main_frame)
+        self.merging_ops.setup_splitting_ui(self.main_frame)
 
-        # Vertical Separator after merging
+        '''# Vertical Separator after merging
         self.separator2 = ttk.Separator(self.main_frame, orient="vertical")
-        self.separator2.pack(side="left", fill="y", padx=20)
+        self.separator2.pack(side="left", fill="y", padx=20)'''
 
-        # OCR Column        
-        #self.ocr_ops.pack(side="left", fill="y", expand=True)
+        # OCR Column
         self.ocr_ops.setup_ocr_ui(self.main_frame)
 
     def setup_top_right_buttons(self):
