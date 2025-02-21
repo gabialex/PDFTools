@@ -26,8 +26,8 @@ class CompressionOps:
 
     def setup_compression_ui(self, parent):        
         """Set up the compression UI components."""
-        self.left_frame = ttk.Frame(parent)
-        self.left_frame.pack(side="left", fill="both", expand=True, padx=10, pady=5)
+        self.compression_frame = ttk.Frame(parent)
+        self.compression_frame.pack(side="left", fill="both", expand=True, padx=10, pady=5)
 
         # UI Components
         self.setup_compression_header()
@@ -40,12 +40,12 @@ class CompressionOps:
 
     # --------------------- UI Setup Methods ---------------------
     def setup_compression_header(self):
-        self.compress_label = ttk.Label(self.left_frame, text="Compress PDF Files", style="Blue.TLabel")
+        self.compress_label = ttk.Label(self.compression_frame, text="Compress PDF Files", style="Blue.TLabel")
         self.compress_label.pack(pady=5)
 
     def setup_compression_buttons(self):
         """Buttons for selecting directory/files."""
-        self.select_buttons_frame = ttk.Frame(self.left_frame)
+        self.select_buttons_frame = ttk.Frame(self.compression_frame)
         self.select_buttons_frame.pack(pady=10)
 
         buttons = [
@@ -63,8 +63,8 @@ class CompressionOps:
         self.compression_level_var = tk.StringVar(value="medium")
         levels = [("High", "high"), ("Medium", "medium"), ("Low", "low")]
 
-        ttk.Label(self.left_frame, text="Compression Level:").pack(pady=5)
-        frame = ttk.Frame(self.left_frame)
+        ttk.Label(self.compression_frame, text="Compression Level:").pack(pady=5)
+        frame = ttk.Frame(self.compression_frame)
         frame.pack(pady=5)
 
         for text, value in levels:
@@ -81,7 +81,7 @@ class CompressionOps:
 
         for label_text, var_name, default, min_val, max_val in settings:
             # Create a frame for batch elements
-            self.batch_frame = ttk.Frame(self.left_frame)
+            self.batch_frame = ttk.Frame(self.compression_frame)
             self.batch_frame.pack(pady=3)
 
             #Label
@@ -97,7 +97,7 @@ class CompressionOps:
     def setup_delete_originals(self):
         """Checkbox for deleting original files."""
         self.delete_original_var = tk.BooleanVar()
-        cb = ttk.Checkbutton(self.left_frame, 
+        cb = ttk.Checkbutton(self.compression_frame, 
                             text="Delete originals after compression", 
                             variable=self.delete_original_var)
         cb.pack(pady=10)
@@ -105,7 +105,7 @@ class CompressionOps:
 
     def setup_progress_indicators(self):
         """Progress bar and status labels."""
-        self.progress_frame = ttk.Frame(self.left_frame)
+        self.progress_frame = ttk.Frame(self.compression_frame)
         self.progress_frame.pack(pady=20)
         
         self.progress = ttk.Progressbar(self.progress_frame, orient="horizontal", length=300, mode="determinate")
@@ -114,15 +114,15 @@ class CompressionOps:
         self.progress_percentage_label = ttk.Label(self.progress_frame, text="0%")
         self.progress_percentage_label.pack(side="left", padx=5)
         
-        self.current_file_label = ttk.Label(self.left_frame, text="Current File: None", wraplength=400)
+        self.current_file_label = ttk.Label(self.compression_frame, text="Current File: None", wraplength=400)
         self.current_file_label.pack(pady=10)
         
-        self.status_label = ttk.Label(self.left_frame, text="Waiting to start...", wraplength=400)
+        self.status_label = ttk.Label(self.compression_frame, text="Waiting to start...", wraplength=400)
         self.status_label.pack(pady=10)
 
     def setup_action_buttons(self):
         """Start/Cancel buttons."""
-        self.action_buttons_frame = ttk.Frame(self.left_frame)
+        self.action_buttons_frame = ttk.Frame(self.compression_frame)
         self.action_buttons_frame.pack(pady=10)
 
         self.start_button = ttk.Button(
@@ -269,10 +269,12 @@ class CompressionOps:
 
     def _update_progress(self, progress: int, current_file: str):
         """Update progress bar and percentage."""
+        filename = os.path.basename(current_file)
+        display_name = filename if len(filename) <= 30 else f"{filename[:27]}..."
         self.progress["value"] = progress
         percentage = int((progress / len(self.pdf_files)) * 100)
         self.progress_percentage_label.config(text=f"{percentage}%")
-        self.current_file_label.config(text=f"Processing: {os.path.basename(current_file)}")
+        self.current_file_label.config(text=f"Processing: {display_name}")
 
     def _update_current_file(self, file_path: str, original: int, compressed: int):
         """Show detailed file compression results."""
