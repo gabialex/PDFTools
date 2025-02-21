@@ -7,6 +7,7 @@ from logic.log_viewer import view_logs
 from logic.help_window import open_help
 from .compression_ops import CompressionOps
 from .merging_ops import MergingOps
+from .spliting_ops import SplitingOps
 from .utils import ToolTip
 from gui.utils import configure_tooltip_styles
 from .ocr_ops import OCROpsFrame
@@ -47,6 +48,7 @@ class MainWindow(tk.Tk):
         # Initialize operations
         self.compression_ops = CompressionOps(self)
         self.merging_ops = MergingOps(self)
+        self.spliting_ops= SplitingOps(self)
         configure_tooltip_styles(self.style)
         self.ocr_ops = OCROpsFrame(self, controller=self)
         
@@ -89,7 +91,7 @@ class MainWindow(tk.Tk):
 
         # Right Column: Merge /Split PDFs
         self.merging_ops.setup_merging_ui(self.main_frame)
-        self.merging_ops.setup_splitting_ui(self.main_frame)
+        self.spliting_ops.setup_splitting_ui(self.main_frame)
 
         '''# Vertical Separator after merging
         self.separator2 = ttk.Separator(self.main_frame, orient="vertical")
