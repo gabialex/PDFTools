@@ -28,7 +28,7 @@ class MergingOps:
         self.merging_frame = ttk.Frame(parent)
         self.merging_frame.pack(side="left", fill="both", expand=True, padx=10, pady=5)
 
-        # UI components setup for merging
+        # UI components setup for merging in order
         self.setup_header()
         self.setup_file_selection()
         self.setup_compression_options()
