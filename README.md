@@ -3,6 +3,8 @@ PDF Tools is a Python-based application that provides functionality for handling
 Features
 - PDF Compression: Reduce the size of PDF files to save space.
 - PDF Merging: Combine multiple PDF documents into a single file.
+- PDF Splitting: Split PDF files
+- OCR PDF: Ocerizing PDFs
 - User-friendly GUI: Intuitive interface for performing file operations with minimal effort.
 
 Installation
