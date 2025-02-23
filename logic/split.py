@@ -2,49 +2,77 @@
 import os
 import subprocess
 from PyPDF2 import PdfReader, PdfWriter
+import time
 
+# logic/split.py
 def split_pdf(input_pdf, output_dir, split_type="all", compress=False, 
-             compression_level="medium", update_callback=None):
+             compression_level="medium", update_callback=None, log_callback=None):
     """Split PDF into multiple files with optional Ghostscript compression."""
+    filename = os.path.splitext(os.path.basename(input_pdf))[0]
     try:
+        if log_callback:
+            log_callback(f"Starting split of {filename}\n")
+
         if not os.path.exists(input_pdf):
             raise FileNotFoundError(f"Input PDF not found: {input_pdf}")
 
-        os.makedirs(output_dir, exist_ok=True)  # Safer directory creation
+        os.makedirs(output_dir, exist_ok=True)
 
         with open(input_pdf, 'rb') as infile:
             reader = PdfReader(infile)
             total_pages = len(reader.pages)
 
             for i in range(total_pages):
-                output_path = os.path.join(output_dir, f"split_page_{i + 1}.pdf")
+                output_path = os.path.join(output_dir, f"{filename}_page_{i + 1}.pdf")               
                 
                 # Split page
                 with PdfWriter() as writer:
                     writer.add_page(reader.pages[i])
                     with open(output_path, 'wb') as outfile:
                         writer.write(outfile)
+                        if log_callback:
+                            log_callback(f"Splitting page {i+1} from {filename} completed.")
 
-                # Compress if requested
+                # Compress if requested (ONCE per page)
                 if compress:
+                    if log_callback:
+                        log_callback(f"Compressing page {i+1} from {filename} PDF")
                     try:
                         compression_worked = _compress_with_ghostscript(output_path, compression_level)
-                        if not compression_worked:
-                            print(f"Skipped compression for page {i+1} (insufficient size reduction)")
+                        if not compression_worked and log_callback:
+                            log_callback(f"Skipped compression for page {i+1} (Insufficient size reduction)")
+                        elif log_callback:
+                            log_callback(f"Page {i+1} compressed successfully")
                     except Exception as e:
-                        print(f"Compression error on page {i+1}: {str(e)}")
+                        if log_callback:
+                            log_callback(f"Compression error on page {i+1} ({filename}): {str(e)}")
 
+                # Update progress after split+compress
                 if update_callback:
                     update_callback(i + 1, total_pages)
+                time.sleep(0.01)  # Allow UI updates
 
-        return True, f"Split into {total_pages} files. Compressed: {compress}"
+            if log_callback:
+                log_callback(f"\nSplited {filename} into {total_pages} files. Compressed: {compress}")
+        return True, f"Splited {filename} into {total_pages} files. Compressed: {compress}"
+    
 
     except Exception as e:
         return False, f"Failed to split PDF: {str(e)}"
 
-# logic/split.py
 def _compress_with_ghostscript(pdf_path, level="medium"):
-    """Compress PDF only if it reduces size by at least 5%."""
+    """Compress PDF only if it reduces size by at least 1%."""
+    try:
+        # Single Ghostscript check
+        subprocess.run(
+            ["gswin64c", "--version"],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        raise RuntimeError("Ghostscript not found. Install from https://www.ghostscript.com/")
+    
     levels = {
         "high": "/printer",
         "medium": "/ebook",

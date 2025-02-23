@@ -138,6 +138,7 @@ class MergingOps:
             length=300,
             mode="determinate"
         )
+        self.merge_progress.config(style='Normal.Horizontal.TProgressbar')
         self.merge_progress.pack(side="left", padx=5)
 
         self.progress_percentage_label = ttk.Label(self.merge_progress_frame, text="0%")

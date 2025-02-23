@@ -333,10 +333,12 @@ class OCROpsFrame(ttk.Frame):
         total_files = len(file_paths)
         self.per_file_progress_bar["maximum"] = total_files
         self.per_file_progress_bar["value"] = 0
+        self.per_file_progress_bar.config(style='Compress.Horizontal.TProgressbar')
 
         # Initialize the total progress bar for all files
         self.total_progress_bar["maximum"] = total_files
         self.total_progress_bar["value"] = 0
+        self.total_progress_bar.config(style='Normal.Horizontal.TProgressbar')
 
         try:
             processed_count = 0

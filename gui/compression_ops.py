@@ -109,6 +109,7 @@ class CompressionOps:
         self.progress_frame.pack(pady=20)
         
         self.progress = ttk.Progressbar(self.progress_frame, orient="horizontal", length=300, mode="determinate")
+        self.progress.config(style='Normal.Horizontal.TProgressbar')
         self.progress.pack(side="left", padx=5)
         
         self.progress_percentage_label = ttk.Label(self.progress_frame, text="0%")

@@ -7,7 +7,7 @@ from logic.log_viewer import view_logs
 from logic.help_window import open_help
 from .compression_ops import CompressionOps
 from .merging_ops import MergingOps
-from .spliting_ops import SplitingOps
+from .splitting_ops import SplittingOps
 from .utils import ToolTip
 from gui.utils import configure_tooltip_styles
 from .ocr_ops import OCROpsFrame
@@ -16,8 +16,8 @@ class MainWindow(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("PDF Tools")
-        self.geometry("1500x1020")
-        self.minsize(1500, 1020)
+        self.geometry("1570x1020")
+        self.minsize(1570, 1020)
 
         # Initialize style
         self.style = ttk.Style()
@@ -31,7 +31,7 @@ class MainWindow(tk.Tk):
                 'button': '#ffffff',
                 'button_pressed': '#e0e0e0',
                 'accent': '#007acc',
-                'border': '#cccccc',
+                'border': '#555555',
                 'hover': '#e8e8e8'
             },
             'dark': {
@@ -48,7 +48,7 @@ class MainWindow(tk.Tk):
         # Initialize operations
         self.compression_ops = CompressionOps(self)
         self.merging_ops = MergingOps(self)
-        self.spliting_ops= SplitingOps(self)
+        self.spliting_ops= SplittingOps(self)
         configure_tooltip_styles(self.style)
         self.ocr_ops = OCROpsFrame(self, controller=self)
         
@@ -83,19 +83,11 @@ class MainWindow(tk.Tk):
         self.main_frame.pack(fill="both", expand=True, padx=20, pady=10)
 
         # Left Column: Compress PDFs
-        self.compression_ops.setup_compression_ui(self.main_frame)
-
-        '''# Vertical Separator with themed color
-        self.separator = ttk.Separator(self.main_frame, orient="vertical")
-        self.separator.pack(side="left", fill="y", padx=20)'''
+        self.compression_ops.setup_compression_ui(self.main_frame)        
 
         # Right Column: Merge /Split PDFs
         self.merging_ops.setup_merging_ui(self.main_frame)
-        self.spliting_ops.setup_splitting_ui(self.main_frame)
-
-        '''# Vertical Separator after merging
-        self.separator2 = ttk.Separator(self.main_frame, orient="vertical")
-        self.separator2.pack(side="left", fill="y", padx=20)'''
+        self.spliting_ops.setup_splitting_ui(self.main_frame)        
 
         # OCR Column
         self.ocr_ops.setup_ocr_ui(self.main_frame)
@@ -129,6 +121,23 @@ class MainWindow(tk.Tk):
     def apply_theme(self):
         """Apply the current theme with enhanced styling."""
         colors = self.colors[self.current_theme]
+
+        # Progress bar configurations
+        self.style.configure('Normal.Horizontal.TProgressbar',
+        troughcolor=colors['button'],
+        bordercolor=colors['border'],
+        background=colors['accent'],  # Blue in light theme
+        lightcolor=colors['accent'],
+        darkcolor=colors['accent']
+    )
+    
+        self.style.configure('Compress.Horizontal.TProgressbar',
+        troughcolor=colors['button'],
+        bordercolor=colors['border'],
+        background='#FFA500' if self.current_theme == 'light' else '#FF8C00',  # Orange shades
+        lightcolor='#FFA500' if self.current_theme == 'light' else '#FF8C00',
+        darkcolor='#FFA500' if self.current_theme == 'light' else '#FF8C00'
+    )
         
         # Configure main styles
         self.configure(background=colors['bg'])
