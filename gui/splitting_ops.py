@@ -1,5 +1,6 @@
 # gui/splitting_ops.py
 import os
+import sys
 import threading
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
@@ -14,8 +15,7 @@ class SplittingOps:
         self.root = root        
         self.font = ("Segoe UI", 10)
         self.split_file = None
-        self.split_output_folder = ""
-        
+        self.split_output_folder = ""        
 
     def setup_variables(self):
         """Initialize merging variables."""
@@ -37,7 +37,8 @@ class SplittingOps:
         self.setup_progress_bar()
         self.setup_start_split()
         self.setup_status_lbl()        
-        self.setup_log_area()    
+        self.setup_log_area()
+        self.output_folder_button()    
 
     def setup_header(self):
         """Main header for splitting section."""
@@ -113,6 +114,48 @@ class SplittingOps:
         self.select_split_output_folder_button.pack(pady=10)
         ToolTip(self.select_split_output_folder_button, "Choose where to save split PDFs")
 
+    def output_folder_button(self):
+    # Open Output Folder button
+        self.open_output_folder_button = ttk.Button(
+            self.splitting_frame,
+            text="Open Output Folder",
+            command=self.open_output_folder,
+            state=tk.DISABLED
+        )
+        self.open_output_folder_button.pack(pady=5)
+        ToolTip(self.open_output_folder_button, "Open the output folder in file explorer")
+
+    def select_split_output_folder(self):
+        """Handle output folder selection for split files."""
+        folder = filedialog.askdirectory(title="Select Output Folder")
+        if folder:
+            self.split_output_folder = folder
+            self.split_status_label.config(text=f"Output folder: {folder}")
+            self.open_output_folder_button.config(state=tk.NORMAL)  # Enable open button
+
+    def open_output_folder(self):
+        """Open the output folder in system file explorer."""
+        if not self.split_output_folder:
+            messagebox.showwarning("No Folder", "No output folder selected")
+            return
+            
+        if not os.path.isdir(self.split_output_folder):
+            messagebox.showerror("Missing Folder", "Output folder no longer exists")
+            return
+
+        try:
+            # Platform-specific folder opening
+            if sys.platform == "win32":
+                os.startfile(self.split_output_folder)
+            elif sys.platform == "darwin":
+                subprocess.run(["open", self.split_output_folder], check=True)
+            else:
+                subprocess.run(["xdg-open", self.split_output_folder], check=True)
+        except subprocess.CalledProcessError as e:
+            messagebox.showerror("Error", f"Failed to open folder: {e}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Couldn't open folder: {str(e)}")
+
     def setup_progress_bar(self):
         """Progress bar and status labels."""
         self.progress_frame = ttk.Frame(self.splitting_frame)
@@ -155,10 +198,10 @@ class SplittingOps:
     def setup_log_area(self):
         # Create a frame to hold the text widget and scrollbar
         text_frame = ttk.Frame(self.splitting_frame)
-        text_frame.pack(fill="both", expand=True, pady=50, padx=10)
+        text_frame.pack(fill="both", expand=True, pady=10, padx=10)
 
         """Logging textarea for split/compress messages."""
-        self.log_area = tk.Text(text_frame, height=15, width=43, wrap="word", state="disabled")
+        self.log_area = tk.Text(text_frame, height=20, width=43, wrap="word", state="disabled")
         self.log_area.pack(side="left", fill="both", expand=True)        
 
         # Adding a vertical scrollbar for the text area

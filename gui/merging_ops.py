@@ -6,6 +6,7 @@ import traceback
 import subprocess
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext
+from datetime import datetime
 
 from logic.merging import merge_pdfs
 from .utils import ToolTip
@@ -22,19 +23,22 @@ class MergingOps:
         self.merge_files = []
         self.output_folder = ""
         self.merged_file_path = None
+        #self.setup_log_area()
 
     def setup_merging_ui(self, parent):
         """Set up merging UI components."""
         self.merging_frame = ttk.Frame(parent)
         self.merging_frame.pack(side="left", fill="both", expand=True, padx=10, pady=5)
 
-        # UI components setup for merging in order
+        # Modified UI order
         self.setup_header()
         self.setup_file_selection()
         self.setup_compression_options()
         self.setup_output_controls()
         self.setup_progress_indicators()
-        self.setup_post_merge_controls()
+        self.setup_status_lbl()  
+        self.setup_log_area()    
+        self.setup_post_merge_controls()        
         
     def setup_header(self):
         """Main header for merging section."""
@@ -162,15 +166,49 @@ class MergingOps:
             font=self.font,
             wraplength=400
         )
-        self.current_merge_file_label.pack(pady=5)
+        self.current_merge_file_label.pack(pady=5)        
 
+    def setup_status_lbl(self):
+        """Status label above log area."""
         self.merge_status_label = ttk.Label(
             self.merging_frame,
             text="Waiting to start...",
             font=self.font,
             wraplength=400
         )
-        self.merge_status_label.pack(pady=5)        
+        self.merge_status_label.pack(pady=5)      
+
+    def setup_log_area(self):
+        """Unified logging area for merge operations."""
+        log_frame = ttk.Frame(self.merging_frame)
+        log_frame.pack(fill="both", expand=True, pady=5, padx=10)
+
+        self.log_area = tk.Text(
+            log_frame, 
+            height=12,
+            width=60,
+            wrap="word",
+            state="disabled",
+            font=("Consolas", 9)
+        )
+        self.log_area.pack(side="left", fill="both", expand=True)
+
+        scrollbar = ttk.Scrollbar(log_frame, command=self.log_area.yview)
+        scrollbar.pack(side="right", fill="y")
+        self.log_area.configure(yscrollcommand=scrollbar.set)
+
+    def append_log(self, message, tag=None):
+        """Thread-safe log appending with styling support."""
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        formatted_message = f"[{timestamp}] {message}"
+        
+        self.log_area.configure(state="normal")
+        self.log_area.insert(tk.END, formatted_message + "\n", tag)
+        self.log_area.configure(state="disabled")
+        self.log_area.see(tk.END)
+        
+        # Auto-scroll if not paused
+        self.log_area.see(tk.END)
 
     def setup_post_merge_controls(self):
         """Post-merge action controls."""
@@ -240,7 +278,10 @@ class MergingOps:
 
         # Proceed with merging
         self._prepare_for_merge(output_file)
-        threading.Thread(target=self.merge_files_thread, args=(output_file,), daemon=True).start()
+        threading.Thread(
+            target=self.merge_files_thread,
+            args=(output_file,),
+            daemon=True).start()
 
     def merge_files_thread(self, output_file):
         """Background thread for merging process."""
@@ -250,7 +291,8 @@ class MergingOps:
                 output_file,
                 compress_before_merge=self.compress_before_merge_var.get(),
                 compression_level=self.merge_compression_level_var.get(),
-                update_callback=lambda f, p: self.root.after(0, self._update_progress, f, p)
+                update_callback=lambda f, p: self.root.after(0, self._update_progress, f, p),
+                log_callback=lambda msg: self.root.after(0, self.append_log, msg)
             )
 
             if success:
@@ -340,12 +382,78 @@ class MergingOps:
             text=f"Merging file {progress} of {len(self.merge_files)}"
         )
 
-    def _handle_merge_success(self, output_file, summary):
-        """Handle successful merge."""
+    def truncate_path(self, path):
+        """Truncate path to show root, first folder, and filename."""
+        # Split into components
+        if os.name == 'nt':  # Windows
+            drive, path_part = os.path.splitdrive(path)
+            parts = path_part.split(os.sep)
+            root = f"{drive}"
+        else:  # Linux/Mac
+            parts = path.split(os.sep)
+            root = "/"
+        
+        # Filter empty parts and filename
+        parts = [p for p in parts if p]
+        if not parts:
+            return path
+        
+        filename = parts[-1]
+        directories = parts[:-1]
+        
+        # Build truncated path
+        if len(directories) >= 1:
+            first_folder = directories[0]
+            return f"{root}{first_folder}{os.sep}...{os.sep}{filename}"
+        else:
+            return f"{root}{filename}"
+
+    def _handle_merge_success(self, output_file, summary_data):
+        """Handle successful merge with clean formatting."""
         self.open_merged_file_button.config(state=tk.NORMAL)
         self.print_merged_file_button.config(state=tk.NORMAL)
-        self.show_summary("Merge Successful", f"Saved to: {output_file}\n\n{summary}")
-        self.merge_status_label.config(text=f"Success! Merged to:\n{output_file}")
+        
+        # Helper function for size formatting
+        def format_size(bytes_size):
+            return f"{bytes_size / 1024 / 1024:.2f} MB" if bytes_size > 0 else "N/A"
+
+        # Create visual separation
+        separator = "_" * 40
+        success_banner = f"\n{separator}\n*** Merge Successful ***\n{separator}"
+        
+        # Build summary content
+        summary_content = [
+            success_banner,
+            f"📄 Merged Files: {summary_data['file_count']}",
+            f"📂 Output Folder: {self.truncate_path(os.path.dirname(output_file))}",
+            f"💾 Output File: {self.truncate_path(output_file)}",
+            f"📦 Total Size: {format_size(summary_data['total_original'])}"
+        ]
+
+        # Add compression results if used
+        if summary_data['used_compression']:
+            # Calculate safe values
+            original = summary_data['total_original']
+            compressed = summary_data['total_compressed']
+            saved = max(original - compressed, 0)  # Never show negative
+            ratio = (saved / original * 100) if original > 0 else 0
+            ratio_display = max(ratio, 0)  # Ensure non-negative
+            
+            summary_content.extend([
+                f"\n🔍 Compression Results:",
+                f"   Original Size: {format_size(original)}",
+                f"   Compressed Size: {format_size(compressed)}",
+                f"   Space Saved: {format_size(saved)} (▼{ratio_display:.1f}%)"
+            ])
+
+        # Add final separator
+        summary_content.append(f"{separator}\n")
+
+        # Add to log
+        for line in summary_content:
+            self.append_log(line)
+        
+        self.merge_status_label.config(text=f"Success! Merged {summary_data['file_count']} files")
 
     def _handle_merge_error(self, error):
         """Handle merge errors."""
@@ -362,26 +470,33 @@ class MergingOps:
         self.merge_status_label.config(text="Critical error occurred")
 
     def _handle_file_deletion(self):
-        """Handle original file deletion."""
+        """Handle original file deletion with logging."""
         if not messagebox.askyesno(
             "Confirm Deletion",
             f"Permanently delete {len(self.merge_files)} original files?"
         ):
+            self.append_log("File deletion canceled by user")
             return
 
         deleted, failed = [], []
         for file in self.merge_files:
             try:
                 os.remove(file)
-                deleted.append(file)
+                deleted.append(os.path.basename(file))
             except Exception as e:
-                failed.append(f"{file}: {str(e)}")
+                failed.append(f"{os.path.basename(file)}: {str(e)}")
 
-        if deleted or failed:
-            self.show_summary(
-                "Deletion Results",
-                self._format_deletion_summary(deleted, failed)
-            )
+        # Build deletion summary directly in log
+        self.append_log("File Deletion Results:")
+        if deleted:
+            self.append_log("Successfully deleted:")
+            for f in deleted:
+                self.append_log(f"  ✓ {f}")
+        if failed:
+            self.append_log("Failed deletions:")
+            for f in failed:
+                self.append_log(f"  ✗ {f}")
+        self.append_log("-"*40)
 
     def _format_deletion_summary(self, deleted, failed):
         """Format deletion results for display."""
@@ -400,26 +515,6 @@ class MergingOps:
         self.merge_status_label.config(text="Ready to start new merge")
 
     # --------------------- Post-Merge Actions ---------------------
-    def show_summary(self, title, message):
-        """Display merge summary in scrollable dialog."""
-        dialog = tk.Toplevel(self.root)
-        dialog.title(title)
-        
-        text_area = scrolledtext.ScrolledText(
-            dialog,
-            width=90,
-            height=45,
-            font=("Segoe UI", 10),
-            wrap=tk.WORD
-        )
-        text_area.pack(padx=10, pady=10, expand=True, fill="both")
-        text_area.insert(tk.END, message)
-        text_area.config(state=tk.DISABLED)
-        
-        ttk.Button(dialog, text="Close", command=dialog.destroy).pack(pady=5)
-        dialog.transient(self.root)
-        dialog.grab_set()
-
     def open_merged_file(self):
         """Open merged file in default viewer."""
         if not self.merged_file_path or not os.path.exists(self.merged_file_path):

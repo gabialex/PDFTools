@@ -256,7 +256,10 @@ class OCROpsFrame(ttk.Frame):
         """Enable the Run OCR button and change its color if files are selected."""
         if hasattr(self, 'file_paths') and self.file_paths:
             # Enable the button and apply the blue color style
+            style = ttk.Style()
+            style.configure("Blue.TButton", foreground="red", background="lightgrey")
             self.run_button.config(state="normal", style="Blue.TButton")
+            
         else:
             # Disable the button if no files are selected
             self.run_button.config(state="disabled", style="")

@@ -1,6 +1,6 @@
-# gui/main_window.py
 import tkinter as tk
 from tkinter import ttk
+import time
 
 # Local imports
 from logic.log_viewer import view_logs
@@ -16,39 +16,37 @@ class MainWindow(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("PDF Tools")
-        self.geometry("1570x1020")
-        self.minsize(1570, 1020)
+        self.geometry("1900x1150")
+        self.minsize(1900, 1150)
 
         # Initialize style
         self.style = ttk.Style()
         self.style.theme_use("clam")  # Start with light theme
         
-        # Define color schemes
+        # Define modern color schemes
         self.colors = {
             'light': {
-                'bg': 'white',
-                'fg': 'black',
-                'button': '#ffffff',
-                'button_pressed': '#e0e0e0',
-                'accent': '#007acc',
-                'border': '#555555',
-                'hover': '#e8e8e8'
+                'background': '#F8F9FA',
+                'surface': '#FFFFFF',
+                'primary_accent': '#4A90E2',
+                'secondary_accent': '#6C757D',
+                'text': '#212529',
+                'hover': '#E9ECEF'
             },
             'dark': {
-                'bg': '#1e1e1e',
-                'fg': '#ffffff',
-                'button': '#2d2d2d',
-                'button_pressed': '#404040',
-                'accent': '#0098ff',
-                'border': '#555555',
-                'hover': '#383838'
+                'background': '#1A1D21',
+                'surface': '#2D2F33',
+                'primary_accent': '#6C8EBF',
+                'secondary_accent': '#4B5157',
+                'text': '#E8EAED',
+                'hover': '#3A3F44'
             }
         }
         
         # Initialize operations
         self.compression_ops = CompressionOps(self)
         self.merging_ops = MergingOps(self)
-        self.spliting_ops= SplittingOps(self)
+        self.splitting_ops = SplittingOps(self)
         configure_tooltip_styles(self.style)
         self.ocr_ops = OCROpsFrame(self, controller=self)
         
@@ -62,14 +60,6 @@ class MainWindow(tk.Tk):
         # Apply theme after UI is built
         self.apply_theme()
 
-    def view_logs(self, event=None):
-        """Open the log viewer."""
-        view_logs(self)
-
-    def open_help(self, event=None):
-        """Open the help window."""
-        open_help(self)
-
     def setup_ui(self):
         """Set up the main UI components."""
         # Custom font
@@ -78,22 +68,22 @@ class MainWindow(tk.Tk):
         # Top-Right Corner buttons
         self.setup_top_right_buttons()
 
-        # Main Container Frame with custom styling
+        # Main Container Frame with modern styling
         self.main_frame = ttk.Frame(self, style='Main.TFrame')
         self.main_frame.pack(fill="both", expand=True, padx=20, pady=10)
 
         # Left Column: Compress PDFs
-        self.compression_ops.setup_compression_ui(self.main_frame)        
+        self.compression_ops.setup_compression_ui(self.main_frame)
 
-        # Right Column: Merge /Split PDFs
+        # Right Column: Merge / Split PDFs
         self.merging_ops.setup_merging_ui(self.main_frame)
-        self.spliting_ops.setup_splitting_ui(self.main_frame)        
+        self.splitting_ops.setup_splitting_ui(self.main_frame)
 
         # OCR Column
         self.ocr_ops.setup_ocr_ui(self.main_frame)
 
     def setup_top_right_buttons(self):
-        """Set up the top-right buttons with improved styling."""
+        """Set up the top-right buttons with modern styling."""
         self.top_right_frame = ttk.Frame(self, style='TopRight.TFrame')
         self.top_right_frame.pack(side="top", anchor="ne", padx=20, pady=10)
 
@@ -119,59 +109,40 @@ class MainWindow(tk.Tk):
                 self.theme_toggle_button = btn
 
     def apply_theme(self):
-        """Apply the current theme with enhanced styling."""
+        """Apply the modern theme with enhanced styling."""
         colors = self.colors[self.current_theme]
-
-        # Progress bar configurations
-        self.style.configure('Normal.Horizontal.TProgressbar',
-        troughcolor=colors['button'],
-        bordercolor=colors['border'],
-        background=colors['accent'],  # Blue in light theme
-        lightcolor=colors['accent'],
-        darkcolor=colors['accent']
-    )
-    
-        self.style.configure('Compress.Horizontal.TProgressbar',
-        troughcolor=colors['button'],
-        bordercolor=colors['border'],
-        background='#FFA500' if self.current_theme == 'light' else '#FF8C00',  # Orange shades
-        lightcolor='#FFA500' if self.current_theme == 'light' else '#FF8C00',
-        darkcolor='#FFA500' if self.current_theme == 'light' else '#FF8C00'
-    )
         
         # Configure main styles
-        self.configure(background=colors['bg'])
+        self.configure(background=colors['background'])
         
         # Frame styles
         self.style.configure('Main.TFrame',
-            background=colors['bg'],
+            background=colors['background'],
             borderwidth=0
         )
         
         self.style.configure('TopRight.TFrame',
-            background=colors['bg'],
+            background=colors['background'],
             borderwidth=0
         )
         
         # Button styles
         self.style.configure('TButton',
-            background=colors['button'],
-            foreground=colors['fg'],
-            bordercolor=colors['border'],
-            lightcolor=colors['button'],
-            darkcolor=colors['button'],
-            relief="solid",
+            background=colors['surface'],
+            foreground=colors['text'],
+            bordercolor=colors['secondary_accent'],
             borderwidth=1,
-            font=("Segoe UI", 10),
-            padding=5
+            relief="flat",
+            padding=(12, 4),
+            font=("Segoe UI Semibold", 10),
+            anchor="center"
         )
         
-        # Special style for icon buttons
         self.style.configure('Icon.TButton',
-            background=colors['button'],
-            foreground=colors['fg'],
-            bordercolor=colors['border'],
-            relief="solid",
+            background=colors['surface'],
+            foreground=colors['text'],
+            bordercolor=colors['secondary_accent'],
+            relief="flat",
             borderwidth=1,
             padding=2
         )
@@ -179,41 +150,54 @@ class MainWindow(tk.Tk):
         # Button mapping for hover and pressed states
         self.style.map('TButton',
             background=[
-                ('pressed', colors['button_pressed']),
+                ('pressed', colors['primary_accent']),
                 ('active', colors['hover'])
             ],
-            bordercolor=[
-                ('pressed', colors['accent']),
-                ('active', colors['accent'])
-            ],
-            relief=[('pressed', 'solid')]
+            foreground=[
+                ('pressed', colors['text'])
+            ]
         )
         
         # Entry styles
         self.style.configure('TEntry',
-            fieldbackground=colors['button'],
-            foreground=colors['fg'],
-            bordercolor=colors['border'],
-            lightcolor=colors['button'],
-            darkcolor=colors['button'],
-            insertcolor=colors['fg']
+            fieldbackground=colors['surface'],
+            foreground=colors['text'],
+            bordercolor=colors['secondary_accent'],
+            insertcolor=colors['text']
         )
         
-        # Separator style
-        self.style.configure('TSeparator',
-            background=colors['border']
+        # Progress bar styles
+        self.style.configure('Normal.Horizontal.TProgressbar',
+            troughcolor=colors['surface'],
+            bordercolor=colors['secondary_accent'],
+            background=colors['primary_accent'],
+            thickness=8,
+            troughrelief="flat"
+        )
+
+        self.style.configure('Compress.Horizontal.TProgressbar',
+            troughcolor=colors['surface'],
+            bordercolor=colors['secondary_accent'],
+            background='#FFA500' if self.current_theme == 'light' else '#FF8C00',  # Orange shades
+            thickness=8,
+            lightcolor='#FFA500' if self.current_theme == 'light' else '#FF8C00',
+            darkcolor='#FFA500' if self.current_theme == 'light' else '#FF8C00',
+            troughrelief="flat"
         )
         
         # Update theme toggle button
         if self.theme_toggle_button is not None:
             self.theme_toggle_button.config(
-                text="🌙" if self.current_theme == 'light' else "🌞"
+                text="🌙" if self.current_theme == 'dark' else "🌞"  # Fixed condition
             )
 
     def toggle_theme(self, event=None):
         """Toggle between light and dark themes."""
+        # Remove fade animation to prevent rendering issues
         self.current_theme = 'dark' if self.current_theme == 'light' else 'light'
         self.apply_theme()
+        
+        # Force full UI refresh
         self._refresh_widgets(self)
 
     def _refresh_widgets(self, widget):
@@ -221,8 +205,17 @@ class MainWindow(tk.Tk):
         try:
             widget.update_idletasks()
             for child in widget.winfo_children():
-                if isinstance(child, ttk.Button):
-                    child.configure(style='Icon.TButton' if child is self.theme_toggle_button else 'TButton')
+                # Re-apply styles to all widgets
+                if isinstance(child, ttk.Widget):
+                    child.configure(style=child.cget('style'))
                 self._refresh_widgets(child)
         except Exception:
             pass
+
+    def view_logs(self, event=None):
+        """Open the log viewer."""
+        view_logs(self)
+
+    def open_help(self, event=None):
+        """Open the help window."""
+        open_help(self)
