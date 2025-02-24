@@ -11,49 +11,33 @@ def ocr_pdf(input_path: str, output_dir: str, language: str, progress_callback=N
     if not os.path.exists(input_path):
         raise FileNotFoundError(f"Input PDF {input_path} not found")
 
-    # Open the PDF
     doc = fitz.open(input_path)
     output_text = ""
-    total_pages = len(doc)  # Get the total number of pages
+    total_pages = len(doc)
 
-    # Ensure progress starts at 0% when we begin processing a new PDF
+    # Initial callback with 0 pages processed
     if progress_callback:
-        progress_callback(0, 0)
+        progress_callback(0, total_pages)  # current, total
 
-    # Loop through the pages and extract images for OCR
     for page_num in range(total_pages):
         page = doc.load_page(page_num)
-
-        # Render the page as a pixmap (image)
         pix = page.get_pixmap()
-
-        # Convert the pixmap to an image using Pillow
         img = Image.open(io.BytesIO(pix.tobytes("png")))
-
-        # Perform OCR on the image using pytesseract
         text = pytesseract.image_to_string(img, lang=language)
         output_text += text
 
-        # Calculate progress percentage and update the progress bar
-        progress_value = page_num + 1
-        progress_percent = int((progress_value / total_pages) * 100)
-        
-        # Logging for debugging
-        print(f"Page {page_num + 1}/{total_pages} processed. Progress: {progress_percent}%")
-
+        # Update callback with current page +1 and total
         if progress_callback:
-            progress_callback(progress_value, progress_percent)
+            progress_callback(page_num + 1, total_pages)
 
-    # Save the output text to a file
     output_path = os.path.join(output_dir, f"OCR_{os.path.basename(input_path)}.txt")
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(output_text)
 
     doc.close()
 
-    # Ensure progress is 100% after the last page
+    # Final completion update
     if progress_callback:
-        progress_callback(total_pages, 100)
+        progress_callback(total_pages, total_pages)
 
     return output_path
-

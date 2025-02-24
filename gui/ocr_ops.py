@@ -21,6 +21,8 @@ class OCROpsFrame(ttk.Frame):
         self.font = ("Segoe UI", 10)
         self.overwrite_files = False  # Flag for overwrite decision
         self.last_output_dir = None
+        self.page_progress_tag = "page_progress"
+        
 
     def setup_variables(self):
         """Initialize OCR variables."""
@@ -32,55 +34,19 @@ class OCROpsFrame(ttk.Frame):
         self.ocr_frame = ttk.Frame(parent)
         self.ocr_frame.pack(side="left", fill="both", expand=True, padx=10, pady=5)
 
-        # UI Components
+        # UI Components in order
         self.setup_ocr_header()
         self.setup_ocr_file_selection()
         self.setup_ocr_language_selection()
+        self.setup_selected_label()        
         self.setup_action_buttons()
-
-        # Text Label for PB1 (Progress text overlay)
-        self.per_file_progress_text = ttk.Label(self.ocr_frame, text="Progress for individual files 0%", style="Blue.TLabel")
-        self.per_file_progress_text.pack(pady=1)
-
-        # Progress Bar for File Completion (Per-File)
-        self.per_file_progress_bar = ttk.Progressbar(self.ocr_frame, orient="horizontal", length=360, mode="determinate")
-        self.per_file_progress_bar.pack(pady=0)
-
-        # Text Label for PB2 (Progress text overlay)
-        self.total_progress_text = ttk.Label(self.ocr_frame, text="Total progress across all files 0%", style="Blue.TLabel")
-        self.total_progress_text.pack(pady=0)
-
-        # Progress Bar for Total Completion (Across All Files)
-        self.total_progress_bar = ttk.Progressbar(self.ocr_frame, orient="horizontal", length=360, mode='determinate')
-        self.total_progress_bar.pack(pady=0, padx=5)
-
-        # Selected files label
-        self.selected_files_label = ttk.Label(self.ocr_frame, text="No files selected yet")
-        self.selected_files_label.pack(pady=5)
-
-        # Create a frame to hold the text widget and scrollbar
-        text_frame = ttk.Frame(self.ocr_frame)
-        text_frame.pack(fill="both", expand=True, pady=5, padx=10)
-
-        # Scrollable Text Widget for displaying messages
-        self.message_text = tk.Text(text_frame, height=35, width=46, wrap="word", state="disabled")
-        self.message_text.pack(side="left", fill="both", expand=True)
-
-        # Adding a vertical scrollbar for the text area
-        scrollbar = ttk.Scrollbar(text_frame, orient="vertical", command=self.message_text.yview)
-        scrollbar.pack(side="right", fill="y")
-        self.message_text.config(yscrollcommand=scrollbar.set)
-
-        # Add Open Folder button under the text area
-        self.open_folder_btn = ttk.Button(
-            self.ocr_frame,
-            text="Open Output Folder",
-            command=self.open_output_folder
-        )
-        self.open_folder_btn.pack(pady=5)
-        
+        self.setup_per_file_pb_frame_and_label()
+        self.setup_total_files_pb_frame_and_label()
+        self.setup_text_and_sb_frame()
+        self.setup_open_folder_btn()        
 
     # --------------------- UI Setup Methods ---------------------
+
     def setup_ocr_header(self):
         self.ocr_label = ttk.Label(self.ocr_frame, text="OCR PDF Files", style="Blue.TLabel")
         self.ocr_label.pack(pady=3)
@@ -98,16 +64,16 @@ class OCROpsFrame(ttk.Frame):
 
         # Button for selecting individual PDF
         browse_button = ttk.Button(button_frame, text="Select Files", command=self.select_pdf)
-        browse_button.pack(side="left", padx=5, pady=5)
+        browse_button.pack(side="left", padx=5, pady=5)               
 
-        # Entry box to show the selected PDF
-        self.input_entry = ttk.Entry(self.ocr_frame, width=55)
-        self.input_entry.pack(pady=5, padx=18)
-
-        # Tooltips for user guidance
-        ToolTip(self.input_entry, "Path to the PDF file or folder", delay=500)
+        # Tooltips for user guidance        
         ToolTip(browse_button, "Browse and select the PDF file", delay=500)
         ToolTip(folder_button, "Browse and select a folder for batch OCR", delay=500)
+
+    def setup_selected_label(self):
+        # Selected files label
+        self.selected_files_label = ttk.Label(self.ocr_frame, text="No files selected yet")
+        self.selected_files_label.pack(pady=5)        
 
     def setup_ocr_language_selection(self):
         """Language selection for OCR."""
@@ -125,9 +91,6 @@ class OCROpsFrame(ttk.Frame):
         """Open folder dialog and include subfolders"""
         folder_path = filedialog.askdirectory()
         if folder_path:
-            self.input_entry.delete(0, tk.END)
-            self.input_entry.insert(0, folder_path)
-            
             # Clear previous files
             self.file_paths = []
             
@@ -172,6 +135,53 @@ class OCROpsFrame(ttk.Frame):
 
         # Check if Run OCR button should be enabled after handling overwrite
         self.check_run_button_state()
+
+    def setup_per_file_pb_frame_and_label(self):
+        per_file_pb_frame = ttk.Frame(self.ocr_frame)
+        per_file_pb_frame.pack(fill="both", pady=0, padx=5)
+        # Text Label for PB1 (Progress text overlay)
+        self.per_file_progress_text = ttk.Label(per_file_pb_frame, text="Progress for individual files 0%", style="Blue.TLabel")
+        self.per_file_progress_text.pack(pady=0)
+
+        # Progress Bar for File Completion (Per-File)
+        self.per_file_progress_bar = ttk.Progressbar(per_file_pb_frame, orient="horizontal", length=360, mode="determinate")
+        self.per_file_progress_bar.pack(pady=0)
+
+    def setup_total_files_pb_frame_and_label(self):
+        total_progress_pb_frame = ttk.Frame(self.ocr_frame)
+        total_progress_pb_frame.pack(fill="both", pady=0, padx=5)
+        # Text Label for PB2 (Progress text overlay)
+        self.total_progress_text = ttk.Label(total_progress_pb_frame, text="Total progress across all files 0%", style="Blue.TLabel")
+        self.total_progress_text.pack(pady=0)
+
+        # Progress Bar for Total Completion (Across All Files)
+        self.total_progress_bar = ttk.Progressbar(total_progress_pb_frame, orient="horizontal", length=360, mode='determinate')
+        self.total_progress_bar.pack(pady=0, padx=5)
+
+    def setup_text_and_sb_frame(self):
+        # Create a frame to hold the text widget and scrollbar
+        text_frame = ttk.Frame(self.ocr_frame)
+        text_frame.pack(fill="both", expand=True, pady=15, padx=10)
+
+        # Scrollable Text Widget for displaying messages
+        self.message_text = tk.Text(text_frame, height=30, width=46, wrap="word", state="disabled")
+        self.message_text.pack(side="left", fill="both", pady=1, expand=True)
+
+        # Adding a vertical scrollbar for the text area
+        scrollbar = ttk.Scrollbar(text_frame, orient="vertical", command=self.message_text.yview)
+        scrollbar.pack(side="right", fill="y")
+        self.message_text.config(yscrollcommand=scrollbar.set)
+
+    def setup_open_folder_btn(self):
+        # Add Open Folder button under the text area
+        self.open_folder_btn = ttk.Button(
+            self.ocr_frame,
+            text="Open Output Folder",
+            command=self.open_output_folder
+        )
+        self.open_folder_btn.pack(pady=5)
+
+    # --------------------- Functionality Methods ---------------------
 
     def update_file_display(self):
         """Display files in a folder hierarchy with sizes"""
@@ -224,7 +234,7 @@ class OCROpsFrame(ttk.Frame):
         total_size = sum(os.path.getsize(fp) for fp in self.file_paths)
         total_size_mb = total_size / (1024 * 1024)
         self.message_text.insert(tk.END, 
-            f"\nTotal selected: {len(self.file_paths)} files ({total_size_mb:.2f} MB)"
+            f"Selected {len(self.file_paths)} files ({total_size_mb:.2f} MB)\n"
         )
 
         self.message_text.config(state="disabled")
@@ -278,8 +288,7 @@ class OCROpsFrame(ttk.Frame):
                 self.update_message(f"Could not open folder: {str(e)}", "error")
         else:
             self.update_message("No output folder available", "warning")
-
-    # --------------------- Functionality Methods ---------------------
+    
     def select_pdf(self):
         """Open file dialog and store paths"""
         filepaths = filedialog.askopenfilenames(filetypes=[("PDF Files", "*.pdf")])
@@ -288,31 +297,30 @@ class OCROpsFrame(ttk.Frame):
             self.check_existing_outputs()
             self.update_file_display()
 
-            # Extract the folder path from the first selected file
-            folder_path = os.path.dirname(filepaths[0])
-
-            # Update the input entry to show the number of selected files and the folder
-            self.input_entry.delete(0, tk.END)
-            self.input_entry.insert(0, f"{len(filepaths)} files selected from {folder_path}")
-
             # Check if Run OCR button should be enabled
             self.check_run_button_state()
 
     def update_message(self, message, message_type="info"):
         """Helper function to update the message in the text widget."""
+        if int(self.message_text.index('end-1c').split('.')[0]) > 500:
+            self.message_text.delete(1.0, "end -500 lines")
+
         self.message_text.config(state="normal")
         
-        # Set message type (you can style these messages as needed)
-        if message_type == "success":
-            self.message_text.insert(tk.END, f"{message}\n", "success")
-        elif message_type == "warning":
-            self.message_text.tag_configure("warning", foreground="red")
-            self.message_text.insert(tk.END, f"\nWarning: {message}", "warning")
-        elif message_type == "error":
-            self.message_text.insert(tk.END, f"\nError: {message}\n", "error")
+        # Configure tags for different message types
+        self.message_text.tag_configure("file_header", foreground="#FF4500", font=("Segoe UI", 8, "bold"))
+        self.message_text.tag_configure("success", foreground="black", font=("Segoe UI", 10))
+        self.message_text.tag_configure("warning", foreground="orange", font=("Segoe UI", 10))
+        self.message_text.tag_configure("error", foreground="red", font=("Segoe UI", 10))
+        
+        # Insert message with appropriate formatting
+        if message_type == "file_header":
+            self.message_text.insert("end", f"\n{message}\n", message_type)
+        else:
+            self.message_text.insert("end", f"{message}\n", message_type)
         
         self.message_text.config(state="disabled")
-        self.message_text.yview(tk.END)  # Scroll to the latest message 
+        self.message_text.see("end")  # Scroll to the latest message
 
     def run_ocr(self):
         # Disable the Run OCR button and show busy cursor
@@ -334,11 +342,11 @@ class OCROpsFrame(ttk.Frame):
     def process_files(self, file_paths, language):
         start_time = time.time()
         total_files = len(file_paths)
+        
+        # Initialize progress bars
         self.after(0, self.per_file_progress_bar.config, {"maximum": 100, "value": 0})
         self.per_file_progress_bar["value"] = 0
         self.per_file_progress_bar.config(style='Compress.Horizontal.TProgressbar')
-
-        # Initialize the total progress bar for all files
         self.total_progress_bar["maximum"] = total_files
         self.total_progress_bar["value"] = 0
         self.total_progress_bar.config(style='Normal.Horizontal.TProgressbar')
@@ -347,6 +355,13 @@ class OCROpsFrame(ttk.Frame):
             processed_count = 0
 
             for index, pdf_path in enumerate(file_paths):
+                # At the start of processing, remove any progress tracking
+                if hasattr(self, 'progress_line_start'):
+                    del self.progress_line_start
+                if hasattr(self, 'file_header_start'):
+                    del self.file_header_start
+                    del self.file_header_end
+                    
                 # Store the output directory
                 self.last_output_dir = os.path.dirname(pdf_path)
                 output_filename = f"OCR_{os.path.splitext(os.path.basename(pdf_path))[0]}.pdf.txt"
@@ -358,52 +373,69 @@ class OCROpsFrame(ttk.Frame):
                             f"\nSkipped existing file: {output_filename}\n", "warning")
                     continue
 
-                # Actual processing with filename truncation
+                # Get file info
                 filename = os.path.basename(pdf_path)
                 display_name = filename if len(filename) <= 30 else f"{filename[:27]}..."
+                
 
-                self.selected_files_label.config(text=f"Processing file {index+1}/{total_files}: {display_name}")
+                # Update file processing header
+                self.after(0, self.update_file_header,
+                        index + 1, total_files, display_name)
 
-                # Update UI
-                self.update_message(f"Processing: {display_name}")
-                self.per_file_progress_bar.update()
-
-                # OCR processing with progress callback (make sure to pass the filename)
+                # OCR processing with page number callback
                 final_path = ocr_pdf(
                     pdf_path,
                     os.path.dirname(pdf_path),
                     language,
-                    # Capture filename explicitly using default argument
-                    lambda _, p, name=filename: self.update_progress(p, name)
+                    lambda curr, total, name=filename: self.update_progress(curr, total, name)
                 )
 
-                # Update progress text and file completion status
-                self.update_message(f"Completed: {filename}")
-                self.after(0, self.update_total_progress, processed_count, total_files)
+                # Update completion status
                 processed_count += 1
+                self.after(0, self.update_message,
+                        f"\nCompleted: {filename}\nSaved to: {final_path}",
+                        "success")
                 
-                self.after(0, self.update_message, 
-                          f"\nFinished: {os.path.basename(pdf_path)}\nSaved to: {final_path}", "success")
-
-                # Update the total progress bar
+                # Update total progress
                 self.after(0, self.update_total_progress, processed_count, total_files)
-
-                # Add to progress updates
-                elapsed = time.time() - start_time
-                eta = (elapsed / processed_count) * (total_files - processed_count) if processed_count > 0 else 0
 
         except Exception as e:
             self.after(0, self.update_message, f"Error: {str(e)}", "error")        
+        finally:
+            # Final cleanup
+            self.ocr_frame.config(cursor="")
+            self.run_button.config(state="disabled", style="")            
+            messagebox.showinfo("OCR Complete", 
+                f"Processed {processed_count} files successfully!\n"
+                f"Total time: {datetime.timedelta(seconds=int(time.time()-start_time))}"            
+            )
+            self.selected_files_label.config(text=f"{processed_count} PDFs processed successfully!\nSelect Folder or Select Files for another operation")
 
-        self.ocr_frame.config(cursor="")  # Change cursor to
-        self.selected_files_label.config(text="OCR PROCESS COMPLETE", foreground="green")
-        self.run_button.config(state="disabled", style="")
-
-        messagebox.showinfo("OCR Complete", 
-            f"Processed {processed_count} files successfully!\n"
-            f"Total time: {datetime.timedelta(seconds=int(time.time()-start_time))}"
-        )
-
+    def update_file_header(self, current_file: int, total_files: int, display_name: str):
+        """Update the current file processing header in place"""
+        self.message_text.config(state="normal")
+        
+        # Check if we have an existing header
+        if hasattr(self, 'file_header_start'):
+            # Delete only the header line
+            self.message_text.delete(self.file_header_start, self.file_header_end)
+        else:
+            # First time - insert a new line and remember its position
+            self.file_header_start = self.message_text.index("end-1c")
+            self.message_text.insert("end", "\n")
+            self.file_header_end = self.message_text.index("end-1c")
+        
+        # Insert updated header
+        self.selected_files_label.config(text=f"PROGRESS: {current_file}/{total_files}: : {display_name}")
+        header_text = f"Processing file {current_file}/{total_files}: {display_name}"
+        self.message_text.insert("end", header_text, "file_header")
+        
+        # Update header position markers
+        self.file_header_start = self.message_text.index(f"end - {len(header_text) + 1}c")
+        self.file_header_end = self.message_text.index("end-1c")
+        
+        self.message_text.config(state="disabled")
+        self.message_text.see("end")
 
     def show_overwrite_warning(self, existing_files):
         """Custom dialog with renamed buttons"""
@@ -440,16 +472,44 @@ class OCROpsFrame(ttk.Frame):
         self.wait_window(dialog)
         return response
 
-    def update_progress(self, percent, current_file):
-        """Update per-file progress using direct percentage"""
+    def update_progress(self, current_page: int, total_pages: int, current_file: str):
+        """Update progress display with live page numbers"""
+        # Calculate percentage
+        percent = int((current_page / total_pages) * 100) if total_pages > 0 else 0
+        
+        # Update progress bar
         self.per_file_progress_bar["value"] = percent
-        display_name = current_file if len(current_file) <= 30 else f"{current_file[:27]}..."
-        self.per_file_progress_text.config(text=f"Processing {display_name}: {percent}%")
+        
+        # Update file name display
+        display_name = (current_file if len(current_file) <= 30 
+                    else f"{current_file[:27]}...")
+        self.per_file_progress_text.config(
+            text=f"Processing {display_name}: {percent}%"
+        )
+        
+        # Update page numbers in text area (single line)
+        self.message_text.config(state="normal")
+        
+        # Check if we have an existing progress line
+        if hasattr(self, 'progress_line_start'):
+            # Delete only the progress line
+            self.message_text.delete(self.progress_line_start, "end-1c")
+        else:
+            # First time - insert a new line and remember its position
+            self.progress_line_start = self.message_text.index("end-1c")
+            self.message_text.insert("end", "\n")
+        
+        # Insert updated progress
+        self.message_text.insert("end", f"\nPage {current_page}/{total_pages} processed", "progress")
+        
+        # Keep view scrolled to bottom
+        self.message_text.see("end")
+        self.message_text.config(state="disabled")
+        
         self.per_file_progress_bar.update_idletasks()
 
     def update_total_progress(self, value, total_files):
-        """Update total progress bar and text"""
         self.total_progress_bar["value"] = value
-        total_percent = int((value / total_files) * 100)
-        self.total_progress_text.config(text=f"Total progress across all files {total_percent}%")
-        self.total_progress_bar.update()
+        total_percent = int((value / total_files) * 100) if total_files > 0 else 0
+        self.total_progress_text.config(text=f"Total progress: {value}/{total_files} ({total_percent}%)")
+        self.total_progress_bar.update_idletasks()  # Consistent with other updates
