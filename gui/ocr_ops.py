@@ -334,7 +334,7 @@ class OCROpsFrame(ttk.Frame):
     def process_files(self, file_paths, language):
         start_time = time.time()
         total_files = len(file_paths)
-        self.per_file_progress_bar["maximum"] = total_files
+        self.after(0, self.per_file_progress_bar.config, {"maximum": 100, "value": 0})
         self.per_file_progress_bar["value"] = 0
         self.per_file_progress_bar.config(style='Compress.Horizontal.TProgressbar')
 
@@ -369,15 +369,19 @@ class OCROpsFrame(ttk.Frame):
                 self.per_file_progress_bar.update()
 
                 # OCR processing with progress callback (make sure to pass the filename)
-                final_path = ocr_pdf(pdf_path, os.path.dirname(pdf_path), language, 
-                                    lambda value, percent: self.update_progress(value, percent, filename))
+                final_path = ocr_pdf(
+                    pdf_path,
+                    os.path.dirname(pdf_path),
+                    language,
+                    # Capture filename explicitly using default argument
+                    lambda _, p, name=filename: self.update_progress(p, name)
+                )
 
                 # Update progress text and file completion status
                 self.update_message(f"Completed: {filename}")
-
+                self.after(0, self.update_total_progress, processed_count, total_files)
                 processed_count += 1
-                percent = int((processed_count / total_files) * 100)
-                self.after(0, self.update_progress, processed_count, percent, filename)
+                
                 self.after(0, self.update_message, 
                           f"\nFinished: {os.path.basename(pdf_path)}\nSaved to: {final_path}", "success")
 
@@ -436,13 +440,12 @@ class OCROpsFrame(ttk.Frame):
         self.wait_window(dialog)
         return response
 
-    def update_progress(self, value, percent, current_file):
-        """Update progress bar for per file"""
+    def update_progress(self, percent, current_file):
+        """Update per-file progress using direct percentage"""
+        self.per_file_progress_bar["value"] = percent
         display_name = current_file if len(current_file) <= 30 else f"{current_file[:27]}..."
-        self.per_file_progress_bar["value"] = value
-        # Update label text to show current file name and progress percentage
-        self.per_file_progress_text.config(text=f"OCR: {display_name} {percent}%")        
-        self.per_file_progress_bar.update()
+        self.per_file_progress_text.config(text=f"Processing {display_name}: {percent}%")
+        self.per_file_progress_bar.update_idletasks()
 
     def update_total_progress(self, value, total_files):
         """Update total progress bar and text"""
