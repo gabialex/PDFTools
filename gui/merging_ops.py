@@ -33,13 +33,15 @@ class MergingOps:
         # Modified UI order
         self.setup_header()
         self.setup_file_selection()
+        self.setup_merge_status_label()
         self.setup_compression_options()
         self.setup_output_controls()
         self.setup_progress_indicators()
         self.setup_status_lbl()  
         self.setup_log_area()    
-        self.setup_post_merge_controls()        
-        
+        self.setup_post_merge_controls()
+
+    # --------------------- UI Setup Methods ---------------------
     def setup_header(self):
         """Main header for merging section."""
         self.merge_label = ttk.Label(self.merging_frame, text="Merge PDF Files", style="Blue.TLabel")
@@ -56,6 +58,7 @@ class MergingOps:
         self.select_merge_files_button.pack(pady=5)
         ToolTip(self.select_merge_files_button, "Select multiple PDF files to merge.")
 
+    def setup_merge_status_label(self):
         # Selected files counter
         self.merge_status_label_selected = ttk.Label(
             self.merging_frame,
@@ -100,7 +103,6 @@ class MergingOps:
         )
         self.delete_checkbox.pack(pady=10)
         ToolTip(self.delete_checkbox, "Permanently remove original files after merge")
-
         self.toggle_compress_options()
 
     def setup_output_controls(self):
@@ -157,16 +159,7 @@ class MergingOps:
             state=tk.DISABLED
         )
         self.start_merge_button.pack(pady=10)
-        ToolTip(self.start_merge_button, "Begin merging process")
-
-        # Progress labels
-        self.current_merge_file_label = ttk.Label(
-            self.merging_frame,
-            text="Current File: None",
-            font=self.font,
-            wraplength=400
-        )
-        self.current_merge_file_label.pack(pady=5)        
+        ToolTip(self.start_merge_button, "Begin merging process")               
 
     def setup_status_lbl(self):
         """Status label above log area."""
@@ -199,8 +192,8 @@ class MergingOps:
 
     def append_log(self, message, tag=None):
         """Thread-safe log appending with styling support."""
-        timestamp = datetime.now().strftime("%H:%M:%S")
-        formatted_message = f"[{timestamp}] {message}"
+        #timestamp = datetime.now().strftime("%H:%M:%S")
+        formatted_message = f"{message}"
         
         self.log_area.configure(state="normal")
         self.log_area.insert(tk.END, formatted_message + "\n", tag)
@@ -364,8 +357,7 @@ class MergingOps:
         """Prepare UI for merging process."""
         self.merged_file_path = output_file
         self.start_merge_button.config(state=tk.DISABLED)
-        self.merge_progress["value"] = 0
-        self.current_merge_file_label.config(text="Current File: None")
+        self.merge_progress["value"] = 0        
         self.merge_status_label.config(text="Starting merging process...")
 
     def _update_progress(self, current_file, progress):
@@ -373,8 +365,8 @@ class MergingOps:
         filename = os.path.basename(current_file)
         if len(filename) >= 30:
             filename = f"{filename[:27]}..."
-            
-        self.current_merge_file_label.config(text=f"Processing: {filename}")
+
+        self.merge_status_label_selected.config(text=f"Processing: {filename}")
         self.merge_progress["value"] = progress
         percentage = int((progress / len(self.merge_files)) * 100)
         self.progress_percentage_label.config(text=f"{percentage}%")
@@ -417,9 +409,8 @@ class MergingOps:
         def format_size(bytes_size):
             return f"{bytes_size / 1024 / 1024:.2f} MB" if bytes_size > 0 else "N/A"
 
-        # Create visual separation
-        separator = "_" * 40
-        success_banner = f"\n{separator}\n*** Merge Successful ***\n{separator}"
+        # Create visual separation        
+        success_banner = f"\nMerge Successful"
         
         # Build summary content
         summary_content = [
@@ -444,16 +435,14 @@ class MergingOps:
                 f"   Original Size: {format_size(original)}",
                 f"   Compressed Size: {format_size(compressed)}",
                 f"   Space Saved: {format_size(saved)} (▼{ratio_display:.1f}%)"
-            ])
-
-        # Add final separator
-        summary_content.append(f"{separator}\n")
+            ])        
 
         # Add to log
         for line in summary_content:
             self.append_log(line)
         
         self.merge_status_label.config(text=f"Success! Merged {summary_data['file_count']} files")
+        self.append_log("\nAll done, ready to start new merge\n") 
 
     def _handle_merge_error(self, error):
         """Handle merge errors."""
@@ -482,36 +471,35 @@ class MergingOps:
         for file in self.merge_files:
             try:
                 os.remove(file)
-                deleted.append(os.path.basename(file))
+                deleted.append(os.path.basename(file))                
             except Exception as e:
                 failed.append(f"{os.path.basename(file)}: {str(e)}")
 
         # Build deletion summary directly in log
-        self.append_log("File Deletion Results:")
+        #self.append_log("\nFile Deletion Results:")
         if deleted:
             self.append_log("Successfully deleted:")
             for f in deleted:
                 self.append_log(f"  ✓ {f}")
         if failed:
-            self.append_log("Failed deletions:")
+            self.append_log("\nFailed deletions:")
             for f in failed:
                 self.append_log(f"  ✗ {f}")
-        self.append_log("-"*40)
+        self.append_log("\nAll done, ready to start new merge\n")        
 
     def _format_deletion_summary(self, deleted, failed):
         """Format deletion results for display."""
         summary = []
         if deleted:
-            summary.append("Successfully deleted:\n- " + "\n- ".join(deleted))
+            summary.append("Successfully deleted: - " + "\n- ".join(deleted))
         if failed:
-            summary.append("\nFailed to delete:\n- " + "\n- ".join(failed))
+            summary.append("\nFailed to delete: - " + "\n- ".join(failed))
         return "\n".join(summary)
 
     def _reset_ui_state(self):
         """Reset UI to initial state."""
         self.start_merge_button.config(state=tk.NORMAL)
-        self.merge_progress["value"] = 0
-        self.current_merge_file_label.config(text="Current File: None")
+        self.merge_progress["value"] = 0        
         self.merge_status_label.config(text="Ready to start new merge")
 
     # --------------------- Post-Merge Actions ---------------------

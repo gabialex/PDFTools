@@ -19,8 +19,7 @@ def merge_pdfs(
     merger = PdfMerger()
     temp_files = []
     total_original = 0
-    total_compressed = 0
-    summary = []
+    total_compressed = 0    
     log_messages = []  # Store splitting log messages during proces
 
     def add_log(message):
@@ -30,7 +29,7 @@ def merge_pdfs(
 
     try:
         add_log(f"Starting merge of {len(file_paths)} files")
-        add_log(f"Output destination: {output_path}")
+        add_log(f"Output destination: {output_path}\n")
 
         for idx, file in enumerate(file_paths):
             # Update progress via callback
@@ -67,7 +66,8 @@ def merge_pdfs(
 
         merger.write(output_path)
         merger.close()
-        add_log("Merge completed successfully")
+        #add_log("____________________________")
+        #add_log("Merge completed successfully")
 
         # Generate detailed summary data
         summary_data = {
@@ -89,7 +89,7 @@ def merge_pdfs(
     finally:
         # Cleanup temporary files with logging
         if temp_files:
-            add_log("Cleaning up temporary files...")
+            add_log("\nCleaning up temporary files...")
             for temp_file in temp_files:
                 try:
                     os.remove(temp_file)
@@ -99,16 +99,3 @@ def merge_pdfs(
                     add_log(f"  ✗ {error}")
                     logging.error(error)
 
-def _generate_summary(summary_data):
-    """Generate merge summary text from data."""
-    if summary_data["used_compression"]:
-        reduction = summary_data["total_original"] - summary_data["total_compressed"]
-        ratio = (reduction / summary_data["total_original"] * 100) if summary_data["total_original"] > 0 else 0
-        return (
-            f"Merged {summary_data['file_count']} files\n"
-            f"Original Size: {summary_data['total_original'] / 1024 / 1024:.2f} MB\n"
-            f"Compressed Size: {summary_data['total_compressed'] / 1024 / 1024:.2f} MB\n"
-            f"Reduction: {reduction / 1024 / 1024:.2f} MB ({ratio:.1f}%)"
-        )
-    else:
-        return f"Merged {summary_data['file_count']} files (Total: {summary_data['total_original'] / 1024 / 1024:.2f} MB)"

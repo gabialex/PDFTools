@@ -34,12 +34,12 @@ class MainWindow(tk.Tk):
                 'hover': '#E9ECEF'
             },
             'dark': {
-                'background': '#1A1D21',
-                'surface': '#2D2F33',
-                'primary_accent': '#6C8EBF',
-                'secondary_accent': '#4B5157',
-                'text': '#E8EAED',
-                'hover': '#3A3F44'
+                'background': '#000000',      # Pure black for frames
+                'surface': '#1E1E1E',         # Dark gray for other elements
+                'primary_accent': '#4A90E2',   # Keep original blue accent
+                'secondary_accent': '#6C757D', # Keep original gray accent
+                'text': '#FFFFFF',            # White text
+                'hover': '#373737'            # Dark gray hover
             }
         }
         

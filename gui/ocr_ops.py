@@ -22,7 +22,6 @@ class OCROpsFrame(ttk.Frame):
         self.overwrite_files = False  # Flag for overwrite decision
         self.last_output_dir = None
         self.page_progress_tag = "page_progress"
-        
 
     def setup_variables(self):
         """Initialize OCR variables."""
@@ -426,7 +425,8 @@ class OCROpsFrame(ttk.Frame):
             self.file_header_end = self.message_text.index("end-1c")
         
         # Insert updated header
-        self.selected_files_label.config(text=f"PROGRESS: {current_file}/{total_files}: : {display_name}")
+        self.selected_files_label.config(text=f"PROGRESS: {current_file}/{total_files}: {display_name}")
+        percent = int((current_file / total_files) * 100) if total_files > 0 else 0
         header_text = f"Processing file {current_file}/{total_files}: {display_name}"
         self.message_text.insert("end", header_text, "file_header")
         
@@ -500,7 +500,7 @@ class OCROpsFrame(ttk.Frame):
             self.message_text.insert("end", "\n")
         
         # Insert updated progress
-        self.message_text.insert("end", f"\nPage {current_page}/{total_pages} processed", "progress")
+        self.message_text.insert("end", f"\nPage {current_page}/{total_pages} processed: {percent}%", "progress", )
         
         # Keep view scrolled to bottom
         self.message_text.see("end")
