@@ -83,7 +83,7 @@ class SplittingOps:
         self.compression_frame.pack(pady=5)
         
         for text, value in [("High", "high"), ("Medium", "medium"), ("Low", "low")]:
-            rb=ttk.Radiobutton(
+            rb = ttk.Radiobutton(
                 self.compression_frame,
                 text=text,
                 variable=self.split_compression_level_var,
@@ -122,7 +122,7 @@ class SplittingOps:
             command=self.open_output_folder,
             state=tk.DISABLED
         )
-        self.open_output_folder_button.pack(pady=5)
+        self.open_output_folder_button.pack(pady=10)
         ToolTip(self.open_output_folder_button, "Open the output folder in file explorer")
 
     def select_split_output_folder(self):

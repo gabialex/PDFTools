@@ -1,7 +1,7 @@
 # logic/compression.py
 import os
 import logging
-from pikepdf import Pdf, PasswordError, ObjectStreamMode, Name  # Corrected import
+from pikepdf import Pdf, PasswordError, ObjectStreamMode, Name 
 
 # Configure logging
 logging.basicConfig(
@@ -88,4 +88,3 @@ def compress_pdf(input_path, output_path, level="medium", overwrite=False):
     except Exception as e:
         logging.error(f"Error in {input_path}: {str(e)}", exc_info=True)
         return False, str(e)
-

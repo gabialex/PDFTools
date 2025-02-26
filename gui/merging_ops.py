@@ -5,36 +5,39 @@ import threading
 import traceback
 import subprocess
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox, scrolledtext
-from datetime import datetime
+from tkinter import ttk, filedialog, messagebox
+#from datetime import datetime
+from threading import Lock
 
 from logic.merging import merge_pdfs
 from .utils import ToolTip
-from logic.split import split_pdf  # Import the split logic
+from .utils import is_directory_writable, truncate_path 
+
 
 class MergingOps:
     def __init__(self, root):
         self.root = root
         self.setup_variables()
-        self.font = ("Segoe UI", 10)        
+        self.font = ("Segoe UI", 10)
+        self.log_lock = Lock()        
 
     def setup_variables(self):
         """Initialize merging variables."""
         self.merge_files = []
         self.output_folder = ""
-        self.merged_file_path = None
-        #self.setup_log_area()
+        self.merged_file_path = None        
 
     def setup_merging_ui(self, parent):
         """Set up merging UI components."""
         self.merging_frame = ttk.Frame(parent)
         self.merging_frame.pack(side="left", fill="both", expand=True, padx=10, pady=5)
 
-        # Modified UI order
+        # ---------------- UI Components in Order ---------------
         self.setup_header()
         self.setup_file_selection()
         self.setup_merge_status_label()
         self.setup_compression_options()
+        self.setup_delete_originals_lbl()
         self.setup_output_controls()
         self.setup_progress_indicators()
         self.setup_status_lbl()  
@@ -74,7 +77,7 @@ class MergingOps:
         self.compress_before_merge_var = tk.BooleanVar(value=False)
         self.compress_checkbox = ttk.Checkbutton(
             self.merging_frame,
-            text="Compress files before merging",
+            text="Try to compress files before merging",
             variable=self.compress_before_merge_var,
             command=self.toggle_compress_options
         )
@@ -87,13 +90,16 @@ class MergingOps:
         self.compression_frame.pack(pady=5)
         
         for text, value in [("High", "high"), ("Medium", "medium"), ("Low", "low")]:
-            ttk.Radiobutton(
+            rb = ttk.Radiobutton(
                 self.compression_frame,
                 text=text,
                 variable=self.merge_compression_level_var,
                 value=value
-            ).pack(side="left", padx=5)
-        
+            )
+            rb.pack(side="left", padx=5)
+            ToolTip(rb, "If the PDF has been previously compressed, further compression will yield minimal or no improvements.")
+
+    def setup_delete_originals_lbl(self):        
         # Delete originals checkbox
         self.delete_after_merge_var = tk.BooleanVar(value=False)
         self.delete_checkbox = ttk.Checkbutton(
@@ -192,16 +198,16 @@ class MergingOps:
 
     def append_log(self, message, tag=None):
         """Thread-safe log appending with styling support."""
-        #timestamp = datetime.now().strftime("%H:%M:%S")
-        formatted_message = f"{message}"
-        
-        self.log_area.configure(state="normal")
-        self.log_area.insert(tk.END, formatted_message + "\n", tag)
-        self.log_area.configure(state="disabled")
-        self.log_area.see(tk.END)
-        
-        # Auto-scroll if not paused
-        self.log_area.see(tk.END)
+        #timestamp = datetime.now().strftime("%H:%M:%S")        
+        with self.log_lock:
+            formatted_message = f"{message}"            
+            self.log_area.configure(state="normal")
+            self.log_area.insert(tk.END, formatted_message + "\n", tag)
+            self.log_area.configure(state="disabled")
+            self.log_area.see(tk.END)
+            
+            # Auto-scroll if not paused
+            self.log_area.see(tk.END)
 
     def setup_post_merge_controls(self):
         """Post-merge action controls."""
@@ -310,17 +316,23 @@ class MergingOps:
         """Validate user inputs before merging."""
         if not self.merge_files:
             messagebox.showwarning("No Files", "Select PDF files to merge first")
-            return False
-        if not self.output_name_var.get().endswith(".pdf"):
-            messagebox.showerror("Invalid Name", "Output file must end with .pdf")
-            return False
-        """Validate user inputs before merging."""
+            return False 
+        
         if len(self.merge_files) < 2:
             messagebox.showwarning("Insufficient Files", "Select at least two PDF files to merge.")
             return False
+        
+        self.output_name = self.output_name_var.get()
         if not self.output_name_var.get().endswith(".pdf"):
             messagebox.showerror("Invalid Name", "Output file must end with .pdf")
             return False
+        
+        # Check for invalid characters in output filename
+        invalid_chars = '<>:"/\\|?*'
+        if any(char in self.output_name for char in invalid_chars):
+            messagebox.showerror("Invalid Name", f"Output filename contains invalid characters: {invalid_chars}")
+            return False
+
         return True
 
     def _get_output_path(self):
@@ -329,17 +341,33 @@ class MergingOps:
             # Get directory of first file if no output folder selected
             first_file = self.merge_files[0]
             default_output_folder = os.path.dirname(first_file)
+            #print(default_output_folder)
             
-            # Ask for confirmation
-            if not messagebox.askokcancel(
-                "No Output Folder",
-                f"Files will be merged into:\n{default_output_folder}\nProceed?"
-            ):
-                return None  # Explicitly return None on cancel
-            
+            # === 1. ACTUAL WRITE TEST (not os.access) ===
+            is_writable, error = is_directory_writable(default_output_folder)
+            if not is_writable:
+                # Show error with truncated path
+                truncated_path = truncate_path(default_output_folder, max_folders=1,ellipsis='-->')
+                print(truncated_path)
+                messagebox.showerror(
+                    "Permission Denied",
+                    f"Cannot write to:\n{truncated_path}\n\nError: {error}\n\nSelect ANOTHER FOLDER."
+                )
+                self.select_output_folder()  # Trigger folder selection
+                return None          
+
+            # === 2. Confirm Default Folder Usage ===
+            confirmed = messagebox.askokcancel(
+                "Confirm Output Folder",
+                f"Files will be merged into:\n{truncate_path(default_output_folder, max_folders=1, ellipsis='-->')}\nProceed?"
+            )
+            if not confirmed:
+                return None  # User canceled
+
             return os.path.join(default_output_folder, self.output_name_var.get())
         
-        return os.path.join(self.output_folder, self.output_name_var.get())                             
+        # If output folder was explicitly selected earlier
+        return os.path.join(self.output_folder, self.output_name_var.get())  
 
     def _confirm_overwrite(self, path):
         """Handle existing file overwrite confirmation."""
@@ -374,32 +402,6 @@ class MergingOps:
             text=f"Merging file {progress} of {len(self.merge_files)}"
         )
 
-    def truncate_path(self, path):
-        """Truncate path to show root, first folder, and filename."""
-        # Split into components
-        if os.name == 'nt':  # Windows
-            drive, path_part = os.path.splitdrive(path)
-            parts = path_part.split(os.sep)
-            root = f"{drive}"
-        else:  # Linux/Mac
-            parts = path.split(os.sep)
-            root = "/"
-        
-        # Filter empty parts and filename
-        parts = [p for p in parts if p]
-        if not parts:
-            return path
-        
-        filename = parts[-1]
-        directories = parts[:-1]
-        
-        # Build truncated path
-        if len(directories) >= 1:
-            first_folder = directories[0]
-            return f"{root}{first_folder}{os.sep}...{os.sep}{filename}"
-        else:
-            return f"{root}{filename}"
-
     def _handle_merge_success(self, output_file, summary_data):
         """Handle successful merge with clean formatting."""
         self.open_merged_file_button.config(state=tk.NORMAL)
@@ -416,8 +418,8 @@ class MergingOps:
         summary_content = [
             success_banner,
             f"📄 Merged Files: {summary_data['file_count']}",
-            f"📂 Output Folder: {self.truncate_path(os.path.dirname(output_file))}",
-            f"💾 Output File: {self.truncate_path(output_file)}",
+            f"📂 Output Folder: {truncate_path(output_file, max_folders=3, ellipsis='-->')}",
+            f"💾 Output File: {truncate_path(output_file)}",
             f"📦 Total Size: {format_size(summary_data['total_original'])}"
         ]
 
@@ -442,7 +444,7 @@ class MergingOps:
             self.append_log(line)
         
         self.merge_status_label.config(text=f"Success! Merged {summary_data['file_count']} files")
-        self.append_log("\nAll done, ready to start new merge\n") 
+        self.append_log("\nAll done, ready to start new merge\n") if not self.delete_after_merge_var.get() else ""
 
     def _handle_merge_error(self, error):
         """Handle merge errors."""
@@ -465,10 +467,14 @@ class MergingOps:
             f"Permanently delete {len(self.merge_files)} original files?"
         ):
             self.append_log("File deletion canceled by user")
+            self.append_log("\nAll done, ready to start new merge\n")
             return
 
         deleted, failed = [], []
         for file in self.merge_files:
+            if not os.path.exists(self.merged_file_path):
+                messagebox.showerror("Error", "Merged file not found. Deletion canceled.")
+                return
             try:
                 os.remove(file)
                 deleted.append(os.path.basename(file))                
@@ -478,7 +484,7 @@ class MergingOps:
         # Build deletion summary directly in log
         #self.append_log("\nFile Deletion Results:")
         if deleted:
-            self.append_log("Successfully deleted:")
+            self.append_log("\nSuccessfully deleted:")
             for f in deleted:
                 self.append_log(f"  ✓ {f}")
         if failed:
@@ -499,7 +505,8 @@ class MergingOps:
     def _reset_ui_state(self):
         """Reset UI to initial state."""
         self.start_merge_button.config(state=tk.NORMAL)
-        self.merge_progress["value"] = 0        
+        self.merge_progress["value"] = 0
+        self.progress_percentage_label.config(text="0%")
         self.merge_status_label.config(text="Ready to start new merge")
 
     # --------------------- Post-Merge Actions ---------------------

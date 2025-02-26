@@ -1,6 +1,69 @@
 # gui/utils.py
 import tkinter as tk
 from tkinter import ttk
+import os
+import uuid
+from pathlib import Path
+
+def truncate_path(
+    path: str,
+    max_folders: int = 2,
+    ellipsis: str = "-->",
+    max_length: int = 50
+) -> str:
+    """
+    Enhanced path truncation with mixed separator support.
+    Forces forward slashes for consistency in display.
+    """
+    # Normalize path to handle mixed separators
+    normalized = Path(path).as_posix()  # Convert all separators to /
+    
+    # Split into components
+    parts = normalized.split('/')
+    parts = [p for p in parts if p]  # Remove empty strings
+    
+    # Extract drive/root for Windows
+    if os.name == 'nt' and len(parts) > 0 and ':' in parts[0]:
+        root = parts[0] + '/'
+        parts = parts[1:]
+    else:
+        root = '/'
+    
+    if not parts:
+        return normalized
+    
+    # Separate filename and directories
+    filename = parts[-1]
+    directories = parts[:-1]
+    
+    # Truncate logic
+    if len(directories) <= max_folders:
+        return normalized  # No truncation needed
+    
+    preserved_dirs = directories[:max_folders]
+    truncated = f"{root}{'/'.join(preserved_dirs)}/{ellipsis}/{filename}"
+    
+    # Final length check
+    return truncated if len(truncated) <= max_length else f"{root}{ellipsis}/{filename}"
+
+def is_directory_writable(directory: str) -> tuple[bool, str]:
+    """
+    Checks if a directory is writable by attempting to create/delete a test file.
+    Returns: (success: bool, error_message: str)
+    """
+    try:
+        # Generate unique filename to avoid collisions
+        test_file = os.path.join(directory, f"temp_write_test_{uuid.uuid4().hex}.tmp")
+        
+        # Attempt to write/delete a test file
+        with open(test_file, "w") as f:
+            f.write("test")
+        os.remove(test_file)
+        
+        return True, ""
+    
+    except Exception as e:
+        return False, str(e)
 
 class ToolTip:
     def __init__(self, widget, text, delay=500):
@@ -58,7 +121,7 @@ class ToolTip:
             self.tooltip.destroy()
             self.tooltip = None
 
-# Optional: Add styles for theme consistency (called once during GUI setup)
+# Add styles for theme consistency (called once during GUI setup)
 def configure_tooltip_styles(style: ttk.Style):
     style.configure("Tooltip.TFrame", background="#333333", borderwidth=1)
     style.configure("Tooltip.TLabel", background="#333333", foreground="white")
