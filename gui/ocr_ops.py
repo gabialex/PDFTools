@@ -14,7 +14,7 @@ import uuid
 
 from gui.utils import ToolTip
 from logic.ocr import ocr_pdf
-from gui.utils import is_directory_writable
+from gui.utils import is_directory_writable, truncate_filename
 
 class OCROpsFrame(ttk.Frame):
     def __init__(self, parent, controller):
@@ -182,7 +182,7 @@ class OCROpsFrame(ttk.Frame):
             state="disabled"  # Button is disabled initially
         )
         self.run_button.pack(side = "left", padx=5, pady=1)
-        ToolTip(self.run_button, "Extract text from PDF using OCR", delay=500)        
+        ToolTip(self.run_button, "Extract text from PDF using OCR. \nSelect Folders or Select Files to start.", delay=500)        
 
         # Pause/Resume button
         self.pause_resume_button = ttk.Button(
@@ -590,7 +590,7 @@ class OCROpsFrame(ttk.Frame):
                 
                 # Show file header
                 filename = os.path.basename(pdf_path)
-                display_name = filename if len(filename) <= 30 else f"{filename[:27]}..."
+                display_name = truncate_filename(filename, "...", 40)
                 self.after(0, self.update_file_header, index+1, len(file_paths), display_name)
 
                 # Determine output path
@@ -636,7 +636,7 @@ class OCROpsFrame(ttk.Frame):
 
                 # After successful processing
                 completion_text = (
-                    f"Completed: {filename}\n"
+                    f"Completed: {truncate_filename(filename, '...', 40)}\n"
                     f"📁 Saved to: {os.path.dirname(final_path)}"                    
                 )
                 self.after(0, self._update_message_internal, completion_text, "success")
@@ -780,7 +780,7 @@ class OCROpsFrame(ttk.Frame):
 
         self.selected_files_label.config(text=f"PROGRESS: {current_file}/{total_files}: {display_name}")
         """Update file processing header and initialize progress line"""
-        header_text = f"\n{display_name} \t\t{current_file}/{total_files}"
+        header_text = f"\n{current_file}/{total_files} {display_name}"
         self._update_message_internal(header_text, "file_header")
         
         # Initialize progress line position
@@ -841,10 +841,9 @@ class OCROpsFrame(ttk.Frame):
         total_etr = self.calculate_etr(total_processed, total_files, total_elapsed)
         total_percent = int((total_processed / total_files) * 100) if total_files > 0 else 0        
 
-        # Update labels with captured values
-        truncated_current_file = current_file if len(current_file) <= 30 else f"{current_file[:27]}..."
+        # Update labels with captured values        
         self.after(0, lambda p=percent, fe=file_etr: self.per_file_progress_text.config(
-            text=f"{truncated_current_file} {p}% | ETR: {fe}"))           
+            text=f"{truncate_filename(current_file, '...', 35) } {p}% | ETR: {fe}"))           
         
         # Update total progress text
         total_percent = int((self.total_progress_bar['value']/self.total_progress_bar['maximum'])*100)
@@ -853,8 +852,8 @@ class OCROpsFrame(ttk.Frame):
         
         # Update progress text
         percent = int((current_page / total_pages) * 100) if total_pages > 0 else 0
-        progress_text = (f"Page {current_page}/{total_pages} ({percent}%) - {current_file}\n"
-                        f"File ETR: {file_etr} | Total ETR: {total_etr}")
+        progress_text = (f"Page {current_page}/{total_pages} ({percent}%) - {truncate_filename(current_file, '...', 40)}\n"
+                        f"File ETR: {file_etr} | Total ETR: {total_etr}")        
         
         # Update progress bar and text
         self.after(0, lambda: self.per_file_progress_bar.configure(value=percent))        

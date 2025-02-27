@@ -46,6 +46,27 @@ def truncate_path(
     # Final length check
     return truncated if len(truncated) <= max_length else f"{root}{ellipsis}/{filename}"
 
+def truncate_filename(file: str, ellipsis: str = "-->", max_length: int = 50) -> str:
+    if len(file) <= max_length:
+        return file
+    
+    # Calculate available space for the beginning and the end of the filename
+    space_for_parts = max_length - len(ellipsis)
+    if space_for_parts <= 0:
+        raise ValueError("max_length must be greater than the length of the ellipsis.")
+    
+    # Divide the available space between the beginning and end of the filename
+    part_length = space_for_parts // 2
+    
+    # Truncate the filename and add the ellipsis in the middle
+    truncated_file = file[:part_length] + ellipsis + file[-part_length:]
+    
+    return truncated_file
+
+# Example usage:
+#filename = "this_is_a_really_long_filename_that_needs_to_be_shortened.txt"
+#print(truncate_filename(filename, "-->", 30))
+
 def is_directory_writable(directory: str) -> tuple[bool, str]:
     """
     Checks if a directory is writable by attempting to create/delete a test file.

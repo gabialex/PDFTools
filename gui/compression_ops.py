@@ -11,6 +11,7 @@ from typing import Tuple
 # Local imports
 from logic.compression import compress_pdf, find_pdfs
 from .utils import ToolTip
+from .utils import truncate_path
 
 class CompressionOps:
     def __init__(self, root):
@@ -271,7 +272,10 @@ class CompressionOps:
     def _update_progress(self, progress: int, current_file: str):
         """Update progress bar and percentage."""
         filename = os.path.basename(current_file)
-        display_name = filename if len(filename) <= 30 else f"{filename[:27]}..."
+        print(filename)
+        #display_name = filename if len(filename) <= 30 else f"{filename[:27]}..."
+        display_name = truncate_path(os.path.basename(current_file))
+        print(display_name)
         self.progress["value"] = progress
         percentage = int((progress / len(self.pdf_files)) * 100)
         self.progress_percentage_label.config(text=f"{percentage}%")
@@ -282,7 +286,7 @@ class CompressionOps:
         ratio = ((original - compressed) / original) * 100 if original > 0 else 0
         ratio = max(ratio, 0.0)  # Force non-negative
         self.current_file_label.config(
-            text=f"Completed: {os.path.basename(file_path)}\n"
+            text=f"Completed: {truncate_path(os.path.basename(file_path), 2, '...', 40)}\n"
                  f"Reduction: {ratio:.1f}% ({original//1024}KB → {compressed//1024}KB)")
 
     def _finalize_compression(self, stats: dict):
