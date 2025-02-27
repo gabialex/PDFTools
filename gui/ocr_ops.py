@@ -14,7 +14,7 @@ import uuid
 
 from gui.utils import ToolTip
 from logic.ocr import ocr_pdf
-
+from gui.utils import is_directory_writable
 
 class OCROpsFrame(ttk.Frame):
     def __init__(self, parent, controller):
@@ -33,6 +33,24 @@ class OCROpsFrame(ttk.Frame):
         self.cancelled = False
         self.currently_processing = False 
 
+        # Pause state variables
+        self.pause_event = threading.Event()
+        self.resume_event = threading.Event()
+        self.paused_state = {
+            'current_file': None,
+            'current_page': 0,
+            'remaining_files': []
+        }
+
+        # ETA variables
+        self.processing_timers = {
+            'start_time': None,
+            'total_paused_duration': 0.0,
+            'pause_start_time': None,
+            'current_file_start': None,
+            'current_file_paused': 0.0
+        }
+
     def setup_variables(self):
         """Initialize OCR variables."""
         self.input_pdf = ""
@@ -46,11 +64,11 @@ class OCROpsFrame(ttk.Frame):
         # UI Components in order
         self.setup_ocr_header()
         self.setup_ocr_file_selection()        
-        self.setup_ocr_language_selection()
-        self.setup_selected_label()                
+        self.setup_ocr_language_selection()                       
         self.setup_output_directory_selector()  
         self.setup_pb_frames_and_label()
         self.setup_action_buttons()
+        self.setup_selected_label()         
         self.setup_text_and_sb_frame()
         self.setup_open_folder_btn()        
 
@@ -80,8 +98,8 @@ class OCROpsFrame(ttk.Frame):
 
     def setup_selected_label(self):
         # Selected files label
-        self.selected_files_label = ttk.Label(self.ocr_frame, text="No files selected yet")
-        self.selected_files_label.pack(pady=5)        
+        self.selected_files_label = ttk.Label(self.ocr_frame, text="")
+        self.selected_files_label.pack(pady=30)        
 
     def setup_ocr_language_selection(self):
         """Language selection for OCR."""
@@ -109,23 +127,33 @@ class OCROpsFrame(ttk.Frame):
         progress_frame = ttk.Frame(self.ocr_frame)
         progress_frame.pack(fill="both", pady=15, padx=5)        
 
-        # Text Label for PB1 (Progress text overlay)
-        self.per_file_progress_text = ttk.Label(progress_frame, text="Progress for individual files 0%", style="Blue.TLabel")
+        # Modified per-file progress text
+        self.per_file_progress_text = ttk.Label(
+            progress_frame, 
+            text="Current File",  
+            style="Blue.TLabel"
+        )
         self.per_file_progress_text.pack(pady=0)
 
         # Progress Bar for File Completion (Per-File)
-        self.per_file_progress_bar = ttk.Progressbar(progress_frame, orient="horizontal", length=360, mode="determinate")
+        self.per_file_progress_bar = ttk.Progressbar(progress_frame, 
+            orient="horizontal", length=360, mode="determinate")
         self.per_file_progress_bar.config(style='Compress.Horizontal.TProgressbar')
         self.per_file_progress_bar.pack(pady=0)            
         
-        # Text Label for PB2 (Progress text overlay)
-        self.total_progress_text = ttk.Label(progress_frame, text="Total progress across all files 0%", style="Blue.TLabel")
+        # Modified total progress text
+        self.total_progress_text = ttk.Label(
+            progress_frame, 
+            text="Total Progress",
+            style="Blue.TLabel"
+        )
         self.total_progress_text.pack(pady=0)
 
         # Progress Bar for Total Completion (Across All Files)
-        self.total_progress_bar = ttk.Progressbar(progress_frame, orient="horizontal", length=360, mode='determinate')
+        self.total_progress_bar = ttk.Progressbar(progress_frame, 
+            orient="horizontal", length=360, mode='determinate')
         self.total_progress_bar.pack(pady=0, padx=5)
-        self.total_progress_bar.config(style='Normal.Horizontal.TProgressbar')
+        self.total_progress_bar.config(style='Normal.Horizontal.TProgressbar')    
 
     def setup_text_and_sb_frame(self):
         # Create a frame to hold the text widget and scrollbar
@@ -133,7 +161,7 @@ class OCROpsFrame(ttk.Frame):
         text_frame.pack(fill="both", expand=True, pady=15, padx=10)
 
         # Scrollable Text Widget for displaying messages
-        self.message_text = tk.Text(text_frame, height=30, width=46, wrap="word", state="disabled")
+        self.message_text = tk.Text(text_frame, height=36, width=46, wrap="word", state="disabled")
         self.message_text.pack(side="left", fill="both", pady=1, expand=True)
 
         # Adding a vertical scrollbar for the text area
@@ -144,33 +172,37 @@ class OCROpsFrame(ttk.Frame):
     def setup_action_buttons(self):
         """Run OCR button setup with an initial disabled state."""
         action_buttons_frame = ttk.Frame(self.ocr_frame)
-        action_buttons_frame.pack(pady=20)        
+        action_buttons_frame.pack(pady=10)        
 
-        # Initialize button in disabled state
+        # Run OCR button
         self.run_button = ttk.Button(
             action_buttons_frame,
-            text="Run OCR",
+            text="▶ Run OCR",
             command=self.run_ocr,
             state="disabled"  # Button is disabled initially
         )
-        self.run_button.pack(side = "left", padx=5, pady=5)
-        ToolTip(self.run_button, "Extract text from PDF using OCR", delay=500)
+        self.run_button.pack(side = "left", padx=5, pady=1)
+        ToolTip(self.run_button, "Extract text from PDF using OCR", delay=500)        
 
-        # Style for blue button
-        style = ttk.Style()
-        style.configure("Blue.TButton", foreground="blue")
+        # Pause/Resume button
+        self.pause_resume_button = ttk.Button(
+            action_buttons_frame,
+            text="⏸ Pause",
+            command= self.toggle_pause_resume,
+            state="disabled"
+        )
+        self.pause_resume_button.pack(side="left", padx=5)
+        ToolTip(self.pause_resume_button, "Pause/Resume OCR operation", delay=500)
 
         # Cancel button
         self.cancel_button = ttk.Button(
             action_buttons_frame,
-            text="Cancel",
+            text="⏹ Cancel",
             command=self.cancel_ocr,
-            state="disabled"  # Button is disabled initially            
+            state="disabled"
         )
-        self.cancel_button.pack(side="left", padx=5, pady=5)
-        ToolTip(self.cancel_button, "Cancel OCR", delay=500)     
-        self.cancel_button.config(style="Cancel.TButton")
-        style.configure("Cancel.TButton", foreground="red")   
+        self.cancel_button.pack(side="left", padx=5)
+        ToolTip(self.cancel_button, "Cancel all OCR operations", delay=500)
 
     def setup_open_folder_btn(self):
         # Add Open Folder button under the text area
@@ -190,7 +222,7 @@ class OCROpsFrame(ttk.Frame):
         )
         if folder_path:
             # Check if directory is writable
-            writable, error_msg = self.is_directory_writable(folder_path)
+            writable, error_msg = is_directory_writable(folder_path)
             if not writable:
                 messagebox.showerror(
                     "Directory Not Writable",
@@ -201,6 +233,11 @@ class OCROpsFrame(ttk.Frame):
             self.output_dir = folder_path
             self.last_output_dir = folder_path            
             self.update_message(f"\nOutput directory set to:\n{folder_path}", "success") # Show confirmation of change
+
+            # Re-check existing files if any are selected
+            if hasattr(self, 'file_paths') and self.file_paths:
+                self.check_existing_outputs()
+                self.update_file_display()
 
     def select_folder(self):
         """Open folder dialog and include subfolders"""
@@ -253,35 +290,65 @@ class OCROpsFrame(ttk.Frame):
         self.check_run_button_state()   
 
     # ---------------------------- Functionality Methods -------------------------------
-    def is_directory_writable(self, directory: str) -> tuple[bool, str]:
-        """
-        Checks if a directory is writable by attempting to create/delete a test file.
-        Returns: (success: bool, error_message: str)
-        """
-        try:
-            # Generate unique filename to avoid collisions
-            test_file = os.path.join(directory, f"temp_write_test_{uuid.uuid4().hex}.tmp")
-            
-            # Attempt to write/delete a test file
-            with open(test_file, "w") as f:
-                f.write("test")
-            os.remove(test_file)
-            
-            return True, ""
+    # ETA Functions    
+    def get_elapsed_time(self):
+        """Get actual processing time excluding paused periods"""
+        if not self.processing_timers['start_time']:
+            return 0.0
+        total_elapsed = time.time() - self.processing_timers['start_time']
+        return total_elapsed - self.processing_timers['total_paused_duration']
+
+    def format_etr(self, seconds):
+        """Convert seconds to human-readable time format"""
+        if seconds < 0:
+            return ""
+        minutes, seconds = divmod(int(seconds), 60)
+        hours, minutes = divmod(minutes, 60)
+        return f"{hours:02d}h {minutes:02d}m {seconds:02d}s"
+
+    def calculate_etr(self, processed_items, total_items, elapsed_time):
+        """Safer ETR calculation with zero checks"""
+        if processed_items <= 0 or elapsed_time <= 0 or total_items <= 0:
+            return ""
         
-        except Exception as e:
-            return False, str(e)
+        try:
+            items_remaining = total_items - processed_items
+            time_per_item = elapsed_time / processed_items
+            return self.format_etr(time_per_item * items_remaining)
+        except ZeroDivisionError:
+            return "--:--"
+    
+    # Pause/Resume and Cancel OCR Functions
+        
+    def toggle_pause_resume(self):
+        """Toggle between pause and resume states."""
+        if self.pause_event.is_set():
+            # Resume the processing
+            pause_duration = time.time() - self.processing_timers['pause_start_time']
+            self.processing_timers['total_paused_duration'] += pause_duration
+            self.processing_timers['current_file_paused'] += pause_duration
+            self.pause_event.clear()
+            self.resume_event.set()
+            self.pause_resume_button.config(text="⏸ Pause")
+            self.update_message("Resuming OCR process...", "success")
+        else:
+            # Pause the processing
+            self.processing_timers['pause_start_time'] = time.time()
+            self.pause_event.set()
+            self.pause_resume_button.config(text="▶ Resume")
+            self.update_message("Pausing OCR process after current page...", "warning")
         
     def cancel_ocr(self):
         """Handle OCR cancellation request"""
         if self.currently_processing:
             self.cancelled = True
+            # Ensure any paused thread is resumed to allow cancellation
+            self.resume_event.set()
             self.run_button.config(state="disabled")
             self.cancel_button.config(state="disabled")
             self.after(0, self.update_message, 
                       "⚠️ Cancellation requested... Stopping after current file", 
-                      "warning")
-            
+                      "warning")            
             # Set a watchdog to force cleanup if thread doesn't respond
             self.after(5000, self.force_cancel_cleanup)
 
@@ -300,6 +367,7 @@ class OCROpsFrame(ttk.Frame):
         self.cancelled = False
         self.run_button.config(state="normal")
         self.cancel_button.config(state="normal")
+        self.pause_resume_button.config(state="disabled")  # Disable pause button
                 
         # Reset progress bars
         self.per_file_progress_bar["value"] = 0
@@ -450,13 +518,19 @@ class OCROpsFrame(ttk.Frame):
 
     def run_ocr(self):
         self.alternative_dir_for_all = None  # Reset previous choice
-        self.run_button.config(state="disabled")        
+        self.run_button.config(state="disabled")
+
+        # Re-check existing outputs with current directory before processing
+        if hasattr(self, 'file_paths') and self.file_paths:
+            self.check_existing_outputs()  # Now checks against current self.output_dir
+            self.update_file_display()     # Show potentially filtered list   
 
         # Validate output directory choice
         if not self.output_dir:
             response = messagebox.askyesno(
                 "Output Location",
-                "OCR results will be saved in the same directory as original files.\n\nYes to proceed \nNo to select another folder",
+                "OCR results will be saved in the same directory as original files."
+                "\n\nYes to proceed \nNo to select another folder",
                 icon="question")
             
             if not response:
@@ -464,21 +538,40 @@ class OCROpsFrame(ttk.Frame):
                 self.run_button.config(state="normal")
                 self.select_output_folder()                
 
-        # Proceed with OCR
-        language = self.lang_var.get()
-        thread = threading.Thread(target=self.process_files, args=(self.file_paths, language))
-        thread.start()   
+        # Proceed with OCR only if files remain after re-check
+        if hasattr(self, 'file_paths') and self.file_paths:
+            language = self.lang_var.get()
+            thread = threading.Thread(target=self.process_files, args=(self.file_paths, language))
+            thread.start()
+        else:
+            self.update_message("No files to process after output directory check", "warning")
+            self.run_button.config(state="normal") 
 
     def process_files(self, file_paths, language):
+        # Reset labels at start
+        self.after(0, lambda: self.per_file_progress_text.config(
+            text="| ETR:"
+        ))
+        self.after(0, lambda: self.total_progress_text.config(
+            text="Total Progress: 0% | ETA:"
+        ))
+        self.processing_timers = {
+            'start_time': time.time(),
+            'total_paused_duration': 0.0,
+            'pause_start_time': None,
+            'current_file_start': None,
+            'current_file_paused': 0.0
+        }
+
         self.currently_processing = True
         self.cancelled = False  # Reset cancellation flag
+        self.after(0, self.pause_resume_button.config, {'state': 'normal'})  # Enable pause button
 
         start_time = time.time()
         total_files = len(file_paths)
         processed_count = 0
         skipped_files = []
-        permission_errors = []  # List for permission-related skips
-        custom_dirs = {}  # Stores custom directories for specific files
+        permission_errors = []  # List for permission-related skips        
 
         # Initialize progress bars
         self.after(0, self.per_file_progress_bar.config, {"maximum": 100, "value": 0})
@@ -508,7 +601,7 @@ class OCROpsFrame(ttk.Frame):
                     output_dir = self.alternative_dir_for_all
                 else:
                     # Check directory writability
-                    writable, error_msg = self.is_directory_writable(output_dir)
+                    writable, error_msg = is_directory_writable(output_dir)
                     if not writable:
                         response = self.prompt_alternative_directory(pdf_path, error_msg)
                         if response is None:  # User canceled
@@ -633,7 +726,7 @@ class OCROpsFrame(ttk.Frame):
             return False
         
         # Verify writability of new directory
-        writable, error_msg = self.is_directory_writable(folder_path)
+        writable, error_msg = is_directory_writable(folder_path)
         if not writable:
             messagebox.showerror(
                 "Directory Not Writable",
@@ -679,20 +772,15 @@ class OCROpsFrame(ttk.Frame):
         )
         if len(skipped_files) > 5:
             warning_text += f"\n...and {len(skipped_files)-5} more"
-        self._update_message_with_tag(warning_text + "\n", "warning")
-
-    def show_skipped_files_warning(self, skipped_files):
-        warning_msg = "Skipped these existing files:\n\n" + "\n".join(
-            f"• {os.path.basename(f)}" for f in skipped_files[:5]
-        )
-        if len(skipped_files) > 5:
-            warning_msg += f"\n...and {len(skipped_files)-5} more"
-        messagebox.showwarning("Skipped Files", warning_msg)
+        self._update_message_with_tag(warning_text + "\n", "warning")    
 
     def update_file_header(self, current_file: int, total_files: int, display_name: str):
+        self.processing_timers['current_file_start'] = time.time()
+        self.processing_timers['current_file_paused'] = 0.0
+
         self.selected_files_label.config(text=f"PROGRESS: {current_file}/{total_files}: {display_name}")
         """Update file processing header and initialize progress line"""
-        header_text = f"\nProcessing file {current_file}/{total_files}: {display_name}"
+        header_text = f"\n{display_name} \t\t{current_file}/{total_files}"
         self._update_message_internal(header_text, "file_header")
         
         # Initialize progress line position
@@ -737,19 +825,50 @@ class OCROpsFrame(ttk.Frame):
         self.wait_window(dialog)
         return response
 
+    # Updated update_progress with ETR
     def update_progress(self, current_page: int, total_pages: int, current_file: str):
-        """Update progress display with single updating line"""
+        """Update progress display with ETR calculations"""
+        # Calculate percentages and ETRs first
         percent = int((current_page / total_pages) * 100) if total_pages > 0 else 0
-        progress_text = f"Page {current_page}/{total_pages} ({percent}%) - {current_file}"
+        file_elapsed = time.time() - self.processing_timers['current_file_start'] - self.processing_timers['current_file_paused']
+
+        file_etr = self.calculate_etr(current_page, total_pages, file_elapsed)
         
-        # Update progress bar
-        self.after(0, lambda: self.per_file_progress_bar.configure(value=percent))
-        self.after(0, lambda: self.per_file_progress_text.config(
-            text=f"Processing: {percent}% ({current_page}/{total_pages} pages)"
-        ))
+        # Calculate total ETR
+        total_processed = self.total_progress_bar['value']
+        total_files = self.total_progress_bar['maximum']
+        total_elapsed = self.get_elapsed_time()
+        total_etr = self.calculate_etr(total_processed, total_files, total_elapsed)
+        total_percent = int((total_processed / total_files) * 100) if total_files > 0 else 0        
+
+        # Update labels with captured values
+        truncated_current_file = current_file if len(current_file) <= 30 else f"{current_file[:27]}..."
+        self.after(0, lambda p=percent, fe=file_etr: self.per_file_progress_text.config(
+            text=f"{truncated_current_file} {p}% | ETR: {fe}"))           
+        
+        # Update total progress text
+        total_percent = int((self.total_progress_bar['value']/self.total_progress_bar['maximum'])*100)
+        self.after(0, lambda tp=total_percent, te=total_etr: self.total_progress_text.config(
+        text=f"Total Progress: {tp}% | ETA: {te}"))          
+        
+        # Update progress text
+        percent = int((current_page / total_pages) * 100) if total_pages > 0 else 0
+        progress_text = (f"Page {current_page}/{total_pages} ({percent}%) - {current_file}\n"
+                        f"File ETR: {file_etr} | Total ETR: {total_etr}")
+        
+        # Update progress bar and text
+        self.after(0, lambda: self.per_file_progress_bar.configure(value=percent))        
         
         # Update progress line in text area
         self.after(0, self._update_progress_text, progress_text)
+        
+        # Check for pause request
+        if self.pause_event.is_set():
+            self.after(0, self.update_message, "⏸ Processing paused. Click Resume to continue...", "warning")
+            self.resume_event.wait()
+            self.resume_event.clear()
+            self.pause_event.clear()
+            self.after(0, self.update_message, "▶ Processing resumed...", "success")
         
     def _update_progress_text(self, progress_text):
         """Replace progress line text"""

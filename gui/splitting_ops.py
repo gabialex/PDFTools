@@ -36,7 +36,7 @@ class SplittingOps:
         self.setup_output_folder()
         self.setup_progress_bar()
         self.setup_start_split()
-        self.setup_status_lbl()        
+        self.setup_split_status()        
         self.setup_log_area()
         self.output_folder_button()    
 
@@ -55,14 +55,15 @@ class SplittingOps:
         self.select_split_file_button.pack(pady=5)
         ToolTip(self.select_split_file_button, "Select a PDF file to split.")
 
+    def setup_split_status(self):
         # Selected files counter
         self.split_status_label_selected = ttk.Label(
             self.splitting_frame,
-            text="No files selected yet",
+            text="",
             font=self.font,
             wraplength=400
         )
-        self.split_status_label_selected.pack(pady=10)
+        self.split_status_label_selected.pack(pady=26)
 
     def setup_compression_options(self):
         """Compression-related controls."""
@@ -130,7 +131,7 @@ class SplittingOps:
         folder = filedialog.askdirectory(title="Select Output Folder")
         if folder:
             self.split_output_folder = folder
-            self.split_status_label.config(text=f"Output folder: {folder}")
+            self.split_status_label_selected.config(text=f"Output folder: {folder}")
             self.open_output_folder_button.config(state=tk.NORMAL)  # Enable open button
 
     def open_output_folder(self):
@@ -185,15 +186,7 @@ class SplittingOps:
         self.start_split_button.pack(pady=10)
         ToolTip(self.start_split_button, "Begin splitting process")
 
-    def setup_status_lbl(self):
-        # Status label
-        self.split_status_label = ttk.Label(
-            self.splitting_frame,
-            text="Waiting to start...",
-            font=self.font,
-            wraplength=400
-        )
-        self.split_status_label.pack(pady=5)
+    
 
     def setup_log_area(self):
         # Create a frame to hold the text widget and scrollbar
@@ -231,7 +224,7 @@ class SplittingOps:
         )
         if file:
             self.split_file = file
-            self.split_status_label.config(text=f"Selected file: {os.path.basename(file)}")
+            self.split_status_label_selected.config(text=f"Selected file: {os.path.basename(file)}")
             self.start_split_button.config(state=tk.NORMAL)
 
     def select_split_output_folder(self):
@@ -239,7 +232,7 @@ class SplittingOps:
         folder = filedialog.askdirectory(title="Select Output Folder")
         if folder:
             self.split_output_folder = folder
-            self.split_status_label.config(text=f"Output folder: {folder}")
+            self.split_status_label_selected.config(text=f"Output folder: {folder}")
 
     def start_split(self):
         if self.compress_before_split_var.get():
@@ -293,7 +286,7 @@ class SplittingOps:
 
     def _prepare_for_split(self):
         """Prepare UI for splitting process."""
-        self.split_status_label.config(text="Starting splitting process...")
+        self.split_status_label_selected.config(text="Starting splitting process...")
 
     def _update_split_progress(self, current_page, total_pages):
         """Update progress indicators with immediate UI refresh."""
@@ -302,7 +295,7 @@ class SplittingOps:
         # Update progress components
         self.progress["value"] = progress
         self.progress_percentage_label.config(text=f"{progress}%")
-        self.split_status_label.config(text=f"Splitting page {current_page} of {total_pages}")
+        self.split_status_label_selected.config(text=f"Splitting page {current_page} of {total_pages}")
         
         # Change progress bar style based on compression
         if self.compress_before_split_var.get():
@@ -330,11 +323,11 @@ class SplittingOps:
             "Critical Error",
             f"Unexpected error:\n{str(error)}\nSee logs for details."
         )
-        self.split_status_label.config(text="Critical error occurred")
+        self.split_status_label_selected.config(text="Critical error occurred")
 
     def _reset_ui_state(self):
         """Reset UI to initial state after splitting."""
         self.start_split_button.config(state=tk.NORMAL)
         self.progress["value"] = 0
         self.progress_percentage_label.config(text="0%")
-        self.split_status_label.config(text="Ready for new operation")
+        self.split_status_label_selected.config(text="Ready for new operation")

@@ -34,13 +34,12 @@ class MergingOps:
 
         # ---------------- UI Components in Order ---------------
         self.setup_header()
-        self.setup_file_selection()
-        self.setup_merge_status_label()
+        self.setup_file_selection()        
         self.setup_compression_options()
         self.setup_delete_originals_lbl()
         self.setup_output_controls()
         self.setup_progress_indicators()
-        self.setup_status_lbl()  
+        self.setup_merge_status_label()        
         self.setup_log_area()    
         self.setup_post_merge_controls()
 
@@ -63,13 +62,13 @@ class MergingOps:
 
     def setup_merge_status_label(self):
         # Selected files counter
-        self.merge_status_label_selected = ttk.Label(
+        self.merge_status_label = ttk.Label(
             self.merging_frame,
-            text="No files selected yet",
+            text="",
             font=self.font,
             wraplength=400
         )
-        self.merge_status_label_selected.pack(pady=10)
+        self.merge_status_label.pack(pady=10)
 
     def setup_compression_options(self):
         """Compression-related controls."""
@@ -167,15 +166,7 @@ class MergingOps:
         self.start_merge_button.pack(pady=10)
         ToolTip(self.start_merge_button, "Begin merging process")               
 
-    def setup_status_lbl(self):
-        """Status label above log area."""
-        self.merge_status_label = ttk.Label(
-            self.merging_frame,
-            text="Waiting to start...",
-            font=self.font,
-            wraplength=400
-        )
-        self.merge_status_label.pack(pady=5)      
+        
 
     def setup_log_area(self):
         """Unified logging area for merge operations."""
@@ -309,7 +300,7 @@ class MergingOps:
     # --------------------- Helper Methods for Merging---------------------
     def _update_selected_count(self, count):
         """Update selected files counter."""
-        self.merge_status_label_selected.config(text=f"{count} PDF files selected")
+        self.merge_status_label.config(text=f"{count} PDF files selected")
         self.merge_progress.config(maximum=count)
 
     def _validate_inputs(self):
@@ -386,7 +377,7 @@ class MergingOps:
         self.merged_file_path = output_file
         self.start_merge_button.config(state=tk.DISABLED)
         self.merge_progress["value"] = 0        
-        self.merge_status_label.config(text="Starting merging process...")
+        
 
     def _update_progress(self, current_file, progress):
         """Update progress indicators."""
@@ -394,7 +385,7 @@ class MergingOps:
         if len(filename) >= 30:
             filename = f"{filename[:27]}..."
 
-        self.merge_status_label_selected.config(text=f"Processing: {filename}")
+        self.merge_status_label.config(text=f"Processing: {filename}")
         self.merge_progress["value"] = progress
         percentage = int((progress / len(self.merge_files)) * 100)
         self.progress_percentage_label.config(text=f"{percentage}%")
