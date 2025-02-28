@@ -206,12 +206,16 @@ class OCROpsFrame(ttk.Frame):
 
     def setup_open_folder_btn(self):
         # Add Open Folder button under the text area
+        self.open_output_folder_frame = ttk.Frame(self.ocr_frame)
+        self.open_output_folder_frame.pack(pady=5)
+
         self.open_folder_btn = ttk.Button(
-            self.ocr_frame,
+            self.open_output_folder_frame,
             text="Open Output Folder",
             command=self.open_output_folder
         )
-        self.open_folder_btn.pack(pady=15)
+        self.open_folder_btn.pack(pady=5)
+        ToolTip(self.open_folder_btn, "Open the output folder in file explorer")
 
     def select_output_folder(self):
         """Handle output directory selection."""

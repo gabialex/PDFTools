@@ -339,7 +339,7 @@ class MergingOps:
             if not is_writable:
                 # Show error with truncated path
                 truncated_path = truncate_path(default_output_folder, max_folders=1,ellipsis='-->')
-                print(truncated_path)
+                #print(truncated_path)
                 messagebox.showerror(
                     "Permission Denied",
                     f"Cannot write to:\n{truncated_path}\n\nError: {error}\n\nSelect ANOTHER FOLDER."
