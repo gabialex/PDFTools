@@ -1,7 +1,8 @@
 # logic/compression.py
 import os
 import logging
-from pikepdf import Pdf, PasswordError, ObjectStreamMode, Name 
+from pikepdf import Pdf, PasswordError, ObjectStreamMode, Name, PdfError
+from typing import Tuple
 
 # Configure logging
 logging.basicConfig(
@@ -23,33 +24,48 @@ def find_pdfs(directory):
         logging.error(f"Error scanning {directory}: {str(e)}")
     return pdf_files
 
-def compress_pdf(input_path, output_path, level="medium", overwrite=False):
+def compress_pdf(input_path, output_path, level="medium", overwrite=False) -> Tuple[bool, str, int, int]:
     """
-    Compress a PDF file with safety checks and image optimization.
-    Returns: (success: bool, compressed_size: int | error_message: str)
+    Returns tuple:
+    (success: bool, message: str, original_size: int, compressed_size: int)
     """
+    original_size = 0
+    compressed_size = 0
+    
     try:
         # --- Input Validation ---
         if not os.path.exists(input_path):
             logging.error(f"Input file not found: {input_path}")
-            return False, "Input file not found."
-        
+            return False, "Input file not found", 0, 0
+
         original_size = os.path.getsize(input_path)
         if original_size == 0:
             logging.error(f"Empty file skipped: {input_path}")
-            return False, "File is empty"
+            return False, "File is empty", 0, 0
 
         # --- PDF Processing ---
         with Pdf.open(input_path, allow_overwriting_input=overwrite) as pdf:
             # Remove unused resources
             pdf.remove_unreferenced_resources()
             
-            # --- Image Compression (JPEG at 50% quality) ---
+            # --- Safer Image Compression ---
             for page in pdf.pages:
                 for name, image in page.images.items():
-                    filters = image.Filter
-                    if filters is None or (isinstance(filters, (list, str)) and "/DCTDecode" not in filters):
-                        image.compress(Name.DeviceRGB, quality=50)
+                    try:
+                        # Handle different filter types
+                        filters = image.Filter
+                        if isinstance(filters, Name):
+                            filters = str(filters)
+                        
+                        # Only compress non-JPEG images
+                        if not filters or ("/DCTDecode" not in str(filters)):
+                            # Use lossless compression for non-JPEG
+                            image.compress(Name.FlateDecode, quality=50)
+                    except Exception as img_error:
+                        logging.warning(
+                            f"Could not compress image in {input_path}: {str(img_error)}"
+                        )
+                        continue  # Skip problematic images
             
             # --- Compression Level Settings ---
             compress_streams = True
@@ -69,22 +85,20 @@ def compress_pdf(input_path, output_path, level="medium", overwrite=False):
 
         # --- Post-Compression Validation ---
         compressed_size = os.path.getsize(output_path)
-        if compressed_size >= original_size:
-             compression_ratio = 0.0  # Treat as 0% reduction
-             logging.warning(f"Compression ineffective: {input_path} (larger than original)")
-        else:
-            compression_ratio = ((original_size - compressed_size) / original_size) * 100
-        logging.info(
-            f"Success: {input_path} | "
-            f"Original: {original_size} B | "
-            f"Compressed: {compressed_size} B | "
-            f"Ratio: {compression_ratio:.2f}%"
-        )
-        return True, compressed_size
+        compression_ratio = max(0, ((original_size - compressed_size) / original_size) * 100)
+        
+        logging.info(f"Success: {input_path} | Ratio: {compression_ratio:.2f}%")
+        return True, output_path, original_size, compressed_size
 
-    except PasswordError:
+    except PdfError as pe:
+        logging.error(f"PDF structure error: {input_path} - {str(pe)}")
+        return False, "Corrupted PDF file", original_size, 0
+    except PasswordError as pe:
         logging.error(f"Encrypted PDF skipped: {input_path}")
-        return False, "PDF is password-protected"
+        return False, "Password protected", original_size, 0
     except Exception as e:
         logging.error(f"Error in {input_path}: {str(e)}", exc_info=True)
-        return False, str(e)
+        return False, str(e), original_size, 0
+    except (TypeError, ValueError, AttributeError) as e:
+        logging.error(f"PDF structure error in {input_path}: {str(e)}")
+        return False, "Invalid PDF structure", original_size, 0

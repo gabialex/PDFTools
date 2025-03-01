@@ -45,7 +45,7 @@ def merge_pdfs(
                 temp_filename = f"compressed_{os.path.basename(file)}"
                 temp_file = os.path.join(temp_dir, temp_filename)
                 
-                success, result = compress_pdf(file, temp_file, compression_level)
+                success = compress_pdf(file, temp_file, compression_level)
                 
                 if success:
                     temp_files.append(temp_file)

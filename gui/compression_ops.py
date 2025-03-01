@@ -35,7 +35,6 @@ class CompressionOps:
         # UI Components in order
         self.setup_compression_header()
         self.setup_compression_buttons()
-        self.current_file_label()
         self.setup_compression_options()
         self.setup_batch_options()
         self.setup_delete_originals()
@@ -66,14 +65,7 @@ class CompressionOps:
         for text, command, tooltip in buttons:
             btn = ttk.Button(self.select_buttons_frame, text=text, command=command)
             btn.pack(side="left", padx=5)
-            ToolTip(btn, tooltip, delay=500)
-
-    def current_file_label(self):
-        self.current_file_label_frame = ttk.Frame(self.compression_frame)
-        self.current_file_label_frame.pack(pady=5)
-        
-        self.current_file_label = ttk.Label(self.current_file_label_frame, text="Current File: None", wraplength=400)
-        self.current_file_label.pack(side="left", padx=5)
+            ToolTip(btn, tooltip, delay=500)    
 
     def setup_compression_options(self):
         """Compression level radio buttons."""
@@ -180,9 +172,9 @@ class CompressionOps:
     def setup_status_label(self):
         self.status_label_frame = ttk.Frame(self.compression_frame)
         self.status_label_frame.pack(pady=5)
-
-        self.status_label = ttk.Label(self.status_label_frame, text="Waiting to start...", wraplength=400)
+        self.status_label = ttk.Label(self.status_label_frame, text="Status: Idle", wraplength=400)
         self.status_label.pack(side="left", padx=5)
+        self.log_message("Ready to process PDF files")  # Initial status message
 
     def setup_action_buttons(self):
         """Start/Cancel buttons."""
@@ -214,6 +206,7 @@ class CompressionOps:
 
         # Scrollable Text Widget for displaying messages
         self.message_text = tk.Text(self.text_frame, height=30, width=46, wrap="word", state="disabled")
+        self.message_text.tag_config("ERROR", foreground="red")
         self.message_text.pack(side="left", fill="both", pady=1, expand=True)
 
         # Adding a vertical scrollbar for the text area
@@ -234,13 +227,73 @@ class CompressionOps:
         self.open_folder_btn.pack(pady=5)
         ToolTip(self.open_folder_btn, "Open the output folder in file explorer")
 
-    # --------------------- Core Logic ---------------------
-    def select_directory(self):
-        """Directory selection handler."""
-        self.directory = filedialog.askdirectory(title="Select Directory")
+    def open_output_folder(self):
+        """Open the output directory in system file explorer."""
+        output_dir = self._get_output_directory()
+        
+        if not output_dir:
+            messagebox.showwarning(
+                "No Output Folder",
+                "Please select PDF files or a directory first."
+            )
+            return
+            
+        if not os.path.isdir(output_dir):
+            messagebox.showerror(
+                "Invalid Directory",
+                f"Directory not found:\n{output_dir}"
+            )
+            return
+
+        try:
+            if sys.platform == "win32":
+                os.startfile(output_dir)
+            elif sys.platform == "darwin":
+                subprocess.run(["open", output_dir], check=True)
+            else:
+                subprocess.run(["xdg-open", output_dir], check=True)
+        except Exception as e:
+            messagebox.showerror(
+                "Open Failed",
+                f"Could not open folder:\n{str(e)}"
+            )
+
+    def _get_output_directory(self):
+        """Determine the appropriate output directory."""
+        if self.pdf_files:
+            return os.path.dirname(self.pdf_files[0])
         if self.directory:
+            return self.directory
+        return None
+
+    # --------------------- Core Logic ---------------------
+    def log_message(self, message: str, is_error: bool = False):
+        """Thread-safe message logging with progress formatting"""
+        def update_gui():
+            self.message_text.configure(state='normal')
+            
+            if is_error:
+                tag = "ERROR"
+                prefix = "[ERROR] "
+                fg_color = "red"
+            else:
+                tag = "PROGRESS"
+                prefix = "• "
+                fg_color = "#2c3e50"  # Dark blue-grey
+            
+            self.message_text.tag_config(tag, foreground=fg_color)
+            self.message_text.insert('end', f"{prefix}{message}\n", (tag,))
+            self.message_text.see('end')
+            self.message_text.configure(state='disabled')
+        
+        self.root.after(0, update_gui)
+
+    def select_directory(self):
+        self.directory = filedialog.askdirectory()
+        if self.directory:
+            self.log_message(f"Scanning directory: {self.directory}")
             self.pdf_files = find_pdfs(self.directory)
-            self._update_file_count()
+            self.log_message(f"Found {len(self.pdf_files)} PDF files")
 
     def select_files(self):
         """File selection handler."""
@@ -261,6 +314,10 @@ class CompressionOps:
 
     def start_compression(self):
         """Start compression with validation."""
+        self.log_message("\n=== New Compression Session ===")
+        self.log_message(f"Level: {self.compression_level_var.get().upper()}")
+        self.log_message(f"Min Size: {self.min_size_var.get()} KB")
+        self.log_message(f"Delete Originals: {self.delete_original_var.get()}")
         try:
             # Validate numerical inputs
             self.batch_size = max(1, min(self.batch_size_var.get(), 50))
@@ -302,7 +359,12 @@ class CompressionOps:
 
                 pdf_file = futures[future]
                 try:
-                    success, original, compressed = future.result()
+                    result = future.result()
+                    if not result:  # Handle failed results
+                        stats["skipped"] += 1
+                        continue
+
+                    success, original, compressed = result
                     if success:
                         stats["original"] += original
                         stats["compressed"] += compressed
@@ -317,78 +379,52 @@ class CompressionOps:
                         time.sleep(self.pause_duration)
 
                 except Exception as e:
-                    logging.error(f"Error processing {pdf_file}: {e}")
+                    logging.error(f"Future error: {e}")
+                    self.root.after(0, self.log_message,
+                        f"Processing failed for {pdf_file}: {e}", True)
                     stats["skipped"] += 1
 
         self.root.after(0, self._finalize_compression, stats)
 
-    def process_single_file(self, pdf_file: str, level: str, delete_original: bool, min_size_kb: int) -> Tuple[bool, int, int]:
+    def process_single_file(self, pdf_file: str, level: str, delete_original: bool, min_size_kb: int):
         """Process individual PDF file."""
-        original_size = os.path.getsize(pdf_file)
-        if original_size < min_size_kb * 1024:
-            logging.info(f"Skipped small file: {pdf_file}")
-            return False, original_size, 0
+        try:
+            # Generate output path
+            if delete_original:
+                output_path = pdf_file
+            else:
+                base = os.path.splitext(pdf_file)[0]
+                output_path = f"{base}_compressed.pdf"
 
-        success, result = compress_pdf(
-            pdf_file,
-            pdf_file if delete_original else pdf_file.replace(".pdf", "_compressed.pdf"),
-            level=level,
-            overwrite=delete_original
-        )
+            # Get all 4 return values
+            success, result, original_size, compressed_size = compress_pdf(
+                pdf_file,
+                output_path,
+                level=level,
+                overwrite=delete_original
+            )
 
-        if success:
-            # Update UI with thread-safe callback
-            self.root.after(0, self._update_current_file, pdf_file, original_size, result)
-            return True, original_size, result
-        else:
-            # Show error in status
-            self.root.after(0, lambda: self.status_label.config(text=f"Failed: {os.path.basename(pdf_file)} - {result}"))
-            return False, original_size, 0
+            if success:
+                self.root.after(0, self._update_current_file, 
+                            pdf_file, original_size, compressed_size)
+                return True, original_size, compressed_size
+            else:
+                error_msg = result
+                self.root.after(0, self.log_message,
+                            f"Failed {pdf_file}: {error_msg}", True)
+                return False, original_size, 0
+
+        except Exception as e:
+            logging.error(f"Critical error processing {pdf_file}: {e}")
+            self.root.after(0, self.log_message,
+                        f"CRITICAL ERROR: {pdf_file} - {str(e)}", True)
+            return False, 0, 0
 
     def cancel_compression(self):
         """Handle compression cancellation."""
         self.cancel_flag = True
         self.status_label.config(text="Cancelling...")
         self.cancel_button.config(state=tk.DISABLED)
-
-    def open_output_folder(self):
-        """Open the output directory in system file explorer."""
-        output_dir = self._get_output_directory()
-        
-        if not output_dir:
-            messagebox.showwarning(
-                "No Output Folder",
-                "Please select PDF files or a directory first."
-            )
-            return
-            
-        if not os.path.isdir(output_dir):
-            messagebox.showerror(
-                "Invalid Directory",
-                f"Directory not found:\n{output_dir}"
-            )
-            return
-
-        try:
-            if sys.platform == "win32":
-                os.startfile(output_dir)
-            elif sys.platform == "darwin":
-                subprocess.run(["open", output_dir], check=True)
-            else:
-                subprocess.run(["xdg-open", output_dir], check=True)
-        except Exception as e:
-            messagebox.showerror(
-                "Open Failed",
-                f"Could not open folder:\n{str(e)}"
-            )
-
-    def _get_output_directory(self):
-        """Determine the appropriate output directory."""
-        if self.pdf_files:
-            return os.path.dirname(self.pdf_files[0])
-        if self.directory:
-            return self.directory
-        return None
 
     # --------------------- UI Update Methods ---------------------
     def _update_ui_state(self, start: bool):
@@ -398,32 +434,36 @@ class CompressionOps:
         self.cancel_button.config(state=not state)
 
     def _update_progress(self, progress: int, current_file: str):
-        """Update progress bar and percentage."""
-        filename = os.path.basename(current_file)
-        #print(filename)
-        #display_name = filename if len(filename) <= 30 else f"{filename[:27]}..."
+        """Update progress bar and log processing status"""
         display_name = truncate_path(os.path.basename(current_file))
-        #print(display_name)
         self.progress["value"] = progress
         percentage = int((progress / len(self.pdf_files)) * 100)
+        
+        # Update progress percentage
         self.progress_percentage_label.config(text=f"{percentage}%")
-        self.current_file_label.config(text=f"Processing: {display_name}")
+        
+        # Log to text area instead of label
+        self.log_message(f"Processing: {display_name}")
 
     def _update_current_file(self, file_path: str, original: int, compressed: int):
-        """Show detailed file compression results."""
+        """Show detailed file compression results in text area"""
         ratio = ((original - compressed) / original) * 100 if original > 0 else 0
-        ratio = max(ratio, 0.0)  # Force non-negative
-        self.current_file_label.config(
-            text=f"Completed: {truncate_path(os.path.basename(file_path), 2, '...', 40)}\n"
-                 f"Reduction: {ratio:.1f}% ({original//1024}KB → {compressed//1024}KB)")
-
-    def _finalize_compression(self, stats: dict):
-        """Show final summary."""
-        summary = (
-            f"Processed {len(self.pdf_files)} files\n"
-            f"Success: {len(self.pdf_files) - stats['skipped']} | "
-            f"Failed/Skipped: {stats['skipped']}\n"
-            f"Total reduction: {(stats['original'] - stats['compressed']) / 1024 / 1024:.1f}MB"
+        ratio = max(ratio, 0.0)
+        
+        message = (
+            f"Completed: {truncate_path(os.path.basename(file_path))}\n"
+            f"Reduction: {ratio:.1f}% ({original//1024}KB → {compressed//1024}KB)\n"
+            f"{'-' * 40}"
         )
-        self.status_label.config(text=summary)
-        self._update_ui_state(start=False)
+        
+        self.log_message(message)
+
+    def _finalize_compression(self, stats):
+        summary = (
+            f"\n=== Summary ===\n"
+            f"Processed: {len(self.pdf_files)} files\n"
+            f"Success: {len(self.pdf_files) - stats['skipped']}\n"
+            f"Failed/Skipped: {stats['skipped']}\n"
+            f"Total Reduction: {(stats['original'] - stats['compressed'])/1024/1024:.1f}MB"
+        )
+        self.log_message(summary)
