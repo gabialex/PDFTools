@@ -103,8 +103,8 @@ class MergingOps:
         self.delete_after_merge_var = tk.BooleanVar(value=False)
         self.delete_checkbox = ttk.Checkbutton(
             self.merging_frame,
-            text="Delete original files after merging",
-            variable=self.delete_after_merge_var
+            text="Delete original files after merging", 
+            variable=self.delete_after_merge_var, style = 'Warning.TCheckbutton'
         )
         self.delete_checkbox.pack(pady=10)
         ToolTip(self.delete_checkbox, "Permanently remove original files after merge")
@@ -146,7 +146,7 @@ class MergingOps:
 
         self.merge_progress = ttk.Progressbar(self.merge_progress_frame,
             orient="horizontal",
-            length=300,
+            length=360,
             mode="determinate"
         )
         self.merge_progress.config(style='Normal.Horizontal.TProgressbar')
@@ -164,9 +164,7 @@ class MergingOps:
             state=tk.DISABLED
         )
         self.start_merge_button.pack(pady=10)
-        ToolTip(self.start_merge_button, "Begin merging process")               
-
-        
+        ToolTip(self.start_merge_button, "Begin merging process")
 
     def setup_log_area(self):
         """Unified logging area for merge operations."""
@@ -175,8 +173,8 @@ class MergingOps:
 
         self.log_area = tk.Text(
             log_frame, 
-            height=12,
-            width=60,
+            height=36,
+            width=46,
             wrap="word",
             state="disabled",
             font=("Consolas", 9)

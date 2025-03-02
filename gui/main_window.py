@@ -1,3 +1,4 @@
+#gui/main.window.py
 import tkinter as tk
 from tkinter import ttk
 import time
@@ -16,14 +17,14 @@ class MainWindow(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("PDF Tools")
-        self.geometry("1900x1150")
-        self.minsize(1900, 1150)
+        self.geometry("1900x1200")
+        self.minsize(1900, 1200)
 
         # Initialize style
         self.style = ttk.Style()
         self.style.theme_use("clam")  # Start with light theme
         
-        # Define modern color schemes
+        # Define color schemes
         self.colors = {
             'light': {
                 'background': '#F8F9FA',
@@ -118,12 +119,12 @@ class MainWindow(tk.Tk):
         # Frame styles
         self.style.configure('Main.TFrame',
             background=colors['background'],
-            borderwidth=0
+            borderwidth=1
         )
         
         self.style.configure('TopRight.TFrame',
             background=colors['background'],
-            borderwidth=0
+            borderwidth=1
         )
         
         # Button styles
@@ -165,6 +166,58 @@ class MainWindow(tk.Tk):
             bordercolor=colors['secondary_accent'],
             insertcolor=colors['text']
         )
+
+        # Headers Style
+        self.style.configure('Green_Header.TLabel',
+            foreground='green' if self.current_theme == 'light' else 'black',
+            font = ("Segoe UI", 10, "bold")
+        )
+                             
+
+        # Label styles (Statuses: Normal, Status, Warning)
+        self.style.configure('Normal.TLabel',            
+            foreground=colors['text'] if self.current_theme == 'light' else 'black',
+            font=("Segoe UI", 9)
+        )
+        
+        self.style.configure('Status.TLabel',            
+            foreground='#29A745' if self.current_theme == 'light' else '#57D655',  # Green shades for status
+            font=("Segoe UI", 9)
+        )
+        
+        self.style.configure('Warning.TLabel',
+            background=colors['background'],
+            foreground='#DC3545' if self.current_theme == 'light' else '#FF4C4C',  # Red shades for warnings
+            font=("Segoe UI", 9)
+        )
+
+        # Checkbox styles (Normal, Status, Warning)
+        self.style.configure('Normal.TCheckbutton',            
+            foreground=colors['text'],
+            font=("Segoe UI", 9),
+            indicatorcolor=colors['primary_accent'],
+            padding=(10, 5)
+        )
+        
+        self.style.configure('Status.TCheckbutton',            
+            foreground='#28A745' if self.current_theme == 'light' else '#57D655',  # Green for status
+            font=("Segoe UI", 9),
+            indicatorcolor='#28A745' if self.current_theme == 'light' else '#57D655',
+            padding=(10, 5)
+        )
+        
+        self.style.configure('Warning.TCheckbutton',            
+            foreground=colors['text'],
+            font=("Segoe UI", 9),
+            padding=(10, 5)
+        )
+
+        self.style.map('Warning.TCheckbutton',
+        foreground=[
+            ('!selected', 'black'),  # Red color when unchecked
+            ('selected', '#DC3545')  # Brighter red color when checked
+        ]
+    )
         
         # Progress bar styles
         self.style.configure('Normal.Horizontal.TProgressbar',
@@ -179,6 +232,16 @@ class MainWindow(tk.Tk):
             troughcolor=colors['surface'],
             bordercolor=colors['secondary_accent'],
             background='#FFA500' if self.current_theme == 'light' else '#FF8C00',  # Orange shades
+            thickness=8,
+            lightcolor='#FFA500' if self.current_theme == 'light' else '#FF8C00',
+            darkcolor='#FFA500' if self.current_theme == 'light' else '#FF8C00',
+            troughrelief="flat"
+        )
+
+        self.style.configure('Working.Horizontal.TProgressbar',
+            troughcolor=colors['surface'],
+            bordercolor=colors['secondary_accent'],
+            background='#6CA6CD' if self.current_theme == 'light' else '#6CA6CD',  # Orange shades
             thickness=8,
             lightcolor='#FFA500' if self.current_theme == 'light' else '#FF8C00',
             darkcolor='#FFA500' if self.current_theme == 'light' else '#FF8C00',

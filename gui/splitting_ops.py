@@ -98,7 +98,7 @@ class SplittingOps:
         self.delete_checkbox = ttk.Checkbutton(
             self.splitting_frame,
             text="Delete original files after splitting",
-            variable=self.delete_after_split_var
+            variable=self.delete_after_split_var, style = 'Warning.TCheckbutton',
         )
         self.delete_checkbox.pack(pady=10)
         ToolTip(self.delete_checkbox, "Permanently remove original files after split")
@@ -165,7 +165,7 @@ class SplittingOps:
         self.progress = ttk.Progressbar(
             self.progress_frame,
             orient="horizontal",
-            length=300,
+            length=360,
             mode="determinate",
             style='Normal.Horizontal.TProgressbar'  # Initial style
         )
@@ -184,9 +184,7 @@ class SplittingOps:
             state=tk.DISABLED
         )
         self.start_split_button.pack(pady=10)
-        ToolTip(self.start_split_button, "Begin splitting process")
-
-    
+        ToolTip(self.start_split_button, "Begin splitting process")    
 
     def setup_log_area(self):
         # Create a frame to hold the text widget and scrollbar
@@ -194,7 +192,14 @@ class SplittingOps:
         text_frame.pack(fill="both", expand=True, pady=10, padx=10)
 
         """Logging textarea for split/compress messages."""
-        self.log_area = tk.Text(text_frame, height=20, width=43, wrap="word", state="disabled")
+        self.log_area = tk.Text(
+            text_frame, 
+            height=36, 
+            width=46, 
+            wrap="word", 
+            state="disabled", 
+            font=("Consolas", 9)
+            )
         self.log_area.pack(side="left", fill="both", expand=True)        
 
         # Adding a vertical scrollbar for the text area

@@ -125,7 +125,7 @@ class OCROpsFrame(ttk.Frame):
 
     def setup_pb_frames_and_label(self):        
         progress_frame = ttk.Frame(self.ocr_frame)
-        progress_frame.pack(fill="both", pady=15, padx=5)        
+        progress_frame.pack(fill="both", pady=18, padx=5)        
 
         # Modified per-file progress text
         self.per_file_progress_text = ttk.Label(
@@ -161,7 +161,12 @@ class OCROpsFrame(ttk.Frame):
         text_frame.pack(fill="both", expand=True, pady=15, padx=10)
 
         # Scrollable Text Widget for displaying messages
-        self.message_text = tk.Text(text_frame, height=36, width=46, wrap="word", state="disabled")
+        self.message_text = tk.Text(
+            text_frame, 
+            height=36, 
+            width=46, 
+            wrap="word", 
+            state="disabled")
         self.message_text.pack(side="left", fill="both", pady=1, expand=True)
 
         # Adding a vertical scrollbar for the text area
