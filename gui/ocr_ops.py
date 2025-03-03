@@ -12,9 +12,10 @@ import time
 import datetime
 import uuid
 
-from gui.utils import ToolTip
+from gui.utils import ToolTip, CustomText
 from logic.ocr import ocr_pdf
-from gui.utils import is_directory_writable, truncate_filename
+from .utils import is_directory_writable, truncate_filename
+
 
 class OCROpsFrame(ttk.Frame):
     def __init__(self, parent, controller):
@@ -137,7 +138,7 @@ class OCROpsFrame(ttk.Frame):
 
         # Progress Bar for File Completion (Per-File)
         self.per_file_progress_bar = ttk.Progressbar(progress_frame, 
-            orient="horizontal", length=360, mode="determinate")
+            orient="horizontal", length=300, mode="determinate")
         self.per_file_progress_bar.config(style='Compress.Horizontal.TProgressbar')
         self.per_file_progress_bar.pack(pady=0)            
         
@@ -151,7 +152,7 @@ class OCROpsFrame(ttk.Frame):
 
         # Progress Bar for Total Completion (Across All Files)
         self.total_progress_bar = ttk.Progressbar(progress_frame, 
-            orient="horizontal", length=360, mode='determinate')
+            orient="horizontal", length=300, mode='determinate')
         self.total_progress_bar.pack(pady=0, padx=5)
         self.total_progress_bar.config(style='Normal.Horizontal.TProgressbar')    
 
@@ -161,7 +162,7 @@ class OCROpsFrame(ttk.Frame):
         text_frame.pack(fill="both", expand=True, pady=15, padx=10)
 
         # Scrollable Text Widget for displaying messages
-        self.message_text = tk.Text(
+        self.message_text = CustomText(
             text_frame, 
             height=36, 
             width=46, 
@@ -511,8 +512,8 @@ class OCROpsFrame(ttk.Frame):
         
         # Configure tags
         self.message_text.tag_configure("file_header", foreground="#2c7fb8", font=("Segoe UI", 10))
-        self.message_text.tag_configure("progress", foreground="black", font=("Segoe UI", 9))
-        self.message_text.tag_configure("success", foreground="black", font=("Segoe UI", 10))
+        self.message_text.tag_configure("progress", font=("Segoe UI", 9))
+        self.message_text.tag_configure("success", font=("Segoe UI", 10))
         self.message_text.tag_configure("warning", foreground="#ff7f0e", font=("Segoe UI", 10))
         self.message_text.tag_configure("error", foreground="#d62728", font=("Segoe UI", 10))
 

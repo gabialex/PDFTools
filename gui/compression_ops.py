@@ -13,7 +13,7 @@ from threading import Lock
 
 # Local imports
 from logic.compression import compress_pdf, find_pdfs
-from .utils import ToolTip
+from .utils import ToolTip, CustomText
 from .utils import truncate_path, is_directory_writable
 
 
@@ -37,7 +37,7 @@ class CompressionOps:
     def setup_compression_ui(self, parent):        
         """Set up the compression UI components."""
         self.compression_frame = ttk.Frame(parent)
-        self.compression_frame.pack(side="left", fill="both", expand=True, padx=10, pady=5)
+        self.compression_frame.pack(side="left", fill="both", expand=True, padx=10, pady=5)       
 
         # UI Components in order
         self.setup_compression_header()
@@ -170,7 +170,7 @@ class CompressionOps:
         self.progress_frame = ttk.Frame(self.compression_frame)
         self.progress_frame.pack(pady=5)
         
-        self.progress = ttk.Progressbar(self.progress_frame, orient="horizontal", length=360, mode="determinate")
+        self.progress = ttk.Progressbar(self.progress_frame, orient="horizontal", length=300, mode="determinate")
         self.progress.config(style='Normal.Horizontal.TProgressbar')
         self.progress.pack(side="left", padx=5)
         
@@ -193,6 +193,7 @@ class CompressionOps:
             self.action_buttons_frame,
             text="Start Compression",
             command=self.start_compression,
+            style='TButton',                    
             state=tk.DISABLED
         )
         self.start_button.pack(side="left", padx=5)
@@ -202,7 +203,7 @@ class CompressionOps:
             self.action_buttons_frame,
             text="Cancel",
             command=self.cancel_compression,
-            state=tk.DISABLED
+            state=tk.DISABLED            
         )
         self.cancel_button.pack(side="left", padx=5)
         ToolTip(self.cancel_button, "Stop current operation")
@@ -212,8 +213,8 @@ class CompressionOps:
         self.text_frame = ttk.Frame(self.compression_frame)
         self.text_frame.pack(fill="both", expand=True, pady=5, padx=10)
 
-        # Scrollable Text Widget for displaying messages
-        self.message_text = tk.Text(
+        # Scrollable Text Widget for displaying messages        
+        self.message_text = CustomText(
             self.text_frame, 
             height=36, 
             width=46, 
@@ -224,10 +225,10 @@ class CompressionOps:
         
         # Configure text tags
         self.message_text.tag_config("ERROR", foreground="red")
-        self.message_text.tag_config("SUCCESS", foreground="black")
-        self.message_text.tag_config("INFO", foreground="#2c3e50")     # Existing dark color
+        self.message_text.tag_config("SUCCESS")
+        self.message_text.tag_config("INFO")
         self.message_text.tag_config("HEADER", font=("Segoe UI", 9, "bold"))
-        self.message_text.tag_config("PROGRESS", foreground="#1976D2") # Blue
+        self.message_text.tag_config("PROGRESS", foreground="#1976D2")
 
         self.message_text.pack(side="left", fill="both", pady=1, expand=True)        
 
@@ -354,8 +355,9 @@ class CompressionOps:
     def select_files(self):
         """File selection handler."""
         files = filedialog.askopenfilenames(title="Select PDF Files", filetypes=[("PDF files", "*.pdf")])
-        if files:
+        if files:            
             self.pdf_files = list(files)
+            self.log_message(f"{len(self.pdf_files)} PDF files found")
             self._update_file_count()
 
     def _update_file_count(self):
@@ -363,7 +365,8 @@ class CompressionOps:
         count = len(self.pdf_files)
         if count > 0:
             self.status_label.config(text=f"Ready: {count} PDFs selected")
-            self.start_button.config(state=tk.NORMAL)
+            self.start_button.config(state=tk.NORMAL), 
+            self.start_button.config(style = "Ready.TButton")    
         else:
             self.status_label.config(text="No valid PDF files found")
             self.start_button.config(state=tk.DISABLED)
@@ -607,7 +610,7 @@ class CompressionOps:
         """Handle compression cancellation."""
         self.cancel_flag = True
         self.status_label.config(text="Cancelling...")
-        self.cancel_button.config(state=tk.DISABLED)
+        self.cancel_button.config(state=tk.DISABLED)        
 
     # --------------------- UI Update Methods ---------------------
     def _update_ui_state(self, start: bool):
@@ -615,6 +618,7 @@ class CompressionOps:
         state = tk.DISABLED if start else tk.NORMAL
         self.start_button.config(state=state)
         self.cancel_button.config(state=not state)
+        self.cancel_button.config(style = 'RedTextHover.TButton')        
 
     def _update_progress(self, progress: int):
         """Update progress bar"""
@@ -645,6 +649,10 @@ class CompressionOps:
 
     def _finalize_compression(self, stats):
         """Show formatted summary with proper number formatting"""
+        self.start_button.config(state=tk.DISABLED, style='TButton')
+        
+        self.cancel_button.config(state=tk.DISABLED, style='TButton')
+
         success_count = len(self.pdf_files) - stats['skipped']
         total_reduction_bytes = stats['original'] - stats['compressed']
         total_reduction_mb = total_reduction_bytes / 1024 / 1024
@@ -656,7 +664,7 @@ class CompressionOps:
         self.log_message(f"∙ Successful: {success_count:,}", "INFO")
         self.log_message(f"∙ Failed/Skipped: {stats['skipped']:,}", "INFO")
         self.log_message(
-            f"∙ Total space saved: {total_reduction_mb:,.1f} MB",  # Corrected unit from kB to MB
+            f"∙ Total space saved: {total_reduction_mb:,.1f} MB",  
             "INFO"
         )
         self.log_message(

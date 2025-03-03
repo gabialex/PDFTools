@@ -8,7 +8,7 @@ from tkinter.scrolledtext import ScrolledText
 import subprocess
 
 from logic.split import split_pdf  # Import the split logic
-from .utils import ToolTip
+from .utils import ToolTip, CustomText
 
 class SplittingOps:
     def __init__(self, root):
@@ -165,7 +165,7 @@ class SplittingOps:
         self.progress = ttk.Progressbar(
             self.progress_frame,
             orient="horizontal",
-            length=360,
+            length=300,
             mode="determinate",
             style='Normal.Horizontal.TProgressbar'  # Initial style
         )
@@ -192,7 +192,7 @@ class SplittingOps:
         text_frame.pack(fill="both", expand=True, pady=10, padx=10)
 
         """Logging textarea for split/compress messages."""
-        self.log_area = tk.Text(
+        self.log_area = CustomText(
             text_frame, 
             height=36, 
             width=46, 

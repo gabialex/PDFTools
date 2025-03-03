@@ -146,3 +146,80 @@ class ToolTip:
 def configure_tooltip_styles(style: ttk.Style):
     style.configure("Tooltip.TFrame", background="#333333", borderwidth=1)
     style.configure("Tooltip.TLabel", background="#333333", foreground="white")
+
+# Add this to your gui/utils.py
+class CustomText(tk.Text):
+    """Text widget with theme-aware right-click context menu"""
+    def __init__(self, parent, *args, **kwargs):
+        super().__init__(parent, *args, **kwargs)
+        self.main_window = parent.winfo_toplevel()  # Reference to MainWindow
+        self._create_context_menu()
+        self.bind("<Button-3>", self._show_context_menu)  # Right-click binding
+
+        # Enable keyboard shortcuts
+        self.bind("<Control-c>", lambda e: self.event_generate("<<Copy>>"))
+        self.bind("<Control-x>", lambda e: self.event_generate("<<Cut>>"))
+        self.bind("<Control-v>", lambda e: self.event_generate("<<Paste>>"))
+        self.bind("<Control-a>", self._select_all)
+
+    def _create_context_menu(self):
+        """Create the context menu structure"""
+        self.context_menu = tk.Menu(self, tearoff=0)
+        self.context_menu.add_command(
+            label="Cut", 
+            command=lambda: self.event_generate("<<Cut>>"),
+            accelerator="Ctrl+X",
+            state="disabled" # forn now
+        )
+        self.context_menu.add_command(
+            label="Copy", 
+            command=lambda: self.event_generate("<<Copy>>"),
+            accelerator="Ctrl+C"
+        )
+        self.context_menu.add_command(
+            label="Paste", 
+            command=lambda: self.event_generate("<<Paste>>"),
+            accelerator="Ctrl+V",
+            state="disabled" # for now
+        )
+        self.context_menu.add_separator()
+        self.context_menu.add_command(
+            label="Select All", 
+            command=self._select_all,
+            accelerator="Ctrl+A"
+        )
+
+    def _show_context_menu(self, event):
+        """Show the context menu with proper theming"""
+        try:
+            # Update menu colors based on current theme
+            colors = self.main_window.colors[self.main_window.current_theme]
+            self.context_menu.configure(
+                bg=colors['surface'],
+                fg=colors['text'],
+                activebackground=colors['primary_accent'],
+                activeforeground=colors['surface'],
+                relief='flat',
+                borderwidth=1,
+                font=self.main_window.font
+            )
+            
+            # Update paste availability
+            try:
+                self.clipboard_get()
+                self.context_menu.entryconfig("Paste", state="disable") # Force disable for now
+            except tk.TclError:
+                self.context_menu.entryconfig("Paste", state="disabled")
+
+            self.context_menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            self.context_menu.grab_release()
+
+    def _select_all(self, event=None):
+        """Select all text in the widget"""
+        self.focus_set()  # Ensure widget has focus
+        self.tag_remove("sel", "1.0", "end")  # Clear existing selection
+        self.tag_add("sel", "1.0", "end")
+        self.mark_set("insert", "1.0")  # Move cursor to start
+        self.see("1.0")  # Scroll to top if needed
+        return "break"

@@ -8,10 +8,11 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 #from datetime import datetime
 from threading import Lock
+import sys
 
 from logic.merging import merge_pdfs
-from .utils import ToolTip
-from .utils import is_directory_writable, truncate_path 
+from .utils import ToolTip, CustomText
+from .utils import truncate_path, is_directory_writable
 
 
 class MergingOps:
@@ -64,8 +65,7 @@ class MergingOps:
         # Selected files counter
         self.merge_status_label = ttk.Label(
             self.merging_frame,
-            text="",
-            font=self.font,
+            text="Select at least 2 PDFs to merge",            
             wraplength=400
         )
         self.merge_status_label.pack(pady=10)
@@ -146,7 +146,7 @@ class MergingOps:
 
         self.merge_progress = ttk.Progressbar(self.merge_progress_frame,
             orient="horizontal",
-            length=360,
+            length=300,
             mode="determinate"
         )
         self.merge_progress.config(style='Normal.Horizontal.TProgressbar')
@@ -171,7 +171,7 @@ class MergingOps:
         log_frame = ttk.Frame(self.merging_frame)
         log_frame.pack(fill="both", expand=True, pady=5, padx=10)
 
-        self.log_area = tk.Text(
+        self.log_area = CustomText(
             log_frame, 
             height=36,
             width=46,
@@ -203,6 +203,15 @@ class MergingOps:
         button_frame = ttk.Frame(self.merging_frame)
         button_frame.pack(pady=10)
 
+        self.open_output_folder= ttk.Button(
+            button_frame,
+            text="Open Output Folder",
+            command=self.open_output_folder,
+            state=tk.DISABLED
+        )
+        self.open_output_folder.pack(side="left", padx=5)
+        ToolTip(self.open_output_folder, "Open the output folder in file explorer")        
+
         self.open_merged_file_button = ttk.Button(
             button_frame,
             text="Open Merged File",
@@ -219,7 +228,7 @@ class MergingOps:
             state=tk.DISABLED
         )
         self.print_merged_file_button.pack(side="left", padx=5)
-        ToolTip(self.print_merged_file_button, "Print merged PDF using default printer")  
+        ToolTip(self.print_merged_file_button, "Print merged PDF using default printer")         
 
 
     # --------------------- Core Functionality for Merging---------------------
@@ -238,7 +247,7 @@ class MergingOps:
         if files:
             self.merge_files = list(files)
             self._update_selected_count(len(files))
-            self.start_merge_button.config(state=tk.NORMAL)
+            self.start_merge_button.config(state=tk.NORMAL, style = 'Ready.TButton')
 
     def select_output_folder(self):
         """Handle output folder selection."""
@@ -392,16 +401,17 @@ class MergingOps:
         )
 
     def _handle_merge_success(self, output_file, summary_data):
-        """Handle successful merge with clean formatting."""
+        """Handle successful merge with clean formatting."""        
         self.open_merged_file_button.config(state=tk.NORMAL)
         self.print_merged_file_button.config(state=tk.NORMAL)
+        self.open_output_folder.config(state=tk.NORMAL)
         
         # Helper function for size formatting
         def format_size(bytes_size):
             return f"{bytes_size / 1024 / 1024:.2f} MB" if bytes_size > 0 else "N/A"
 
         # Create visual separation        
-        success_banner = f"\nMerge Successful"
+        success_banner = f"\nMerge Successful"       
         
         # Build summary content
         summary_content = [
@@ -426,7 +436,7 @@ class MergingOps:
                 f"   Original Size: {format_size(original)}",
                 f"   Compressed Size: {format_size(compressed)}",
                 f"   Space Saved: {format_size(saved)} (▼{ratio_display:.1f}%)"
-            ])        
+            ])                   
 
         # Add to log
         for line in summary_content:
@@ -493,12 +503,38 @@ class MergingOps:
 
     def _reset_ui_state(self):
         """Reset UI to initial state."""
-        self.start_merge_button.config(state=tk.NORMAL)
+        self.start_merge_button.config(state=tk.DISABLED, style = 'TButton') 
         self.merge_progress["value"] = 0
         self.progress_percentage_label.config(text="0%")
-        self.merge_status_label.config(text="Ready to start new merge")
+        self.merge_status_label.config(text="Ready for new merge. Select at least 2 PDFs")
 
     # --------------------- Post-Merge Actions ---------------------
+    def open_output_folder(self):
+        """Open the output folder in system file explorer."""
+        if not self.merged_file_path:
+            messagebox.showwarning("Error", "No output folder available")
+            return
+
+        output_dir = os.path.dirname(self.merged_file_path)
+        
+        if not os.path.exists(output_dir):
+            messagebox.showerror(
+                "Folder Not Found",
+                f"The output folder no longer exists:\n{truncate_path(output_dir)}"
+            )
+            return
+
+        try:
+            if os.name == 'nt':  # Windows
+                os.startfile(output_dir)
+            elif os.name == 'posix':  # macOS or Linux
+                subprocess.run(['open' if sys.platform == 'darwin' else 'xdg-open', output_dir])
+        except Exception as e:
+            messagebox.showerror(
+                "Open Failed",
+                f"Could not open output folder:\n{str(e)}\n\nPath: {truncate_path(output_dir)}"
+            )
+    
     def open_merged_file(self):
         """Open merged file in default viewer."""
         if not self.merged_file_path or not os.path.exists(self.merged_file_path):
