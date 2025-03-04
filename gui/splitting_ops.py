@@ -59,11 +59,11 @@ class SplittingOps:
     def setup_compression_options(self):
         """Compression-related controls."""
         # Compression checkbox
-        self.compress_before_split_var = tk.BooleanVar(value=False)
+        self.compress_after_split_var = tk.BooleanVar(value=False)
         self.compress_checkbox = ttk.Checkbutton(
             self.splitting_frame,
             text="Try to compress files after splitting",
-            variable=self.compress_before_split_var,
+            variable=self.compress_after_split_var,
             command=self.toggle_compress_options
         )
         self.compress_checkbox.pack(pady=5)
@@ -221,16 +221,37 @@ class SplittingOps:
             messagebox.showerror("Error", f"Couldn't open folder: {str(e)}")      
 
     def append_log(self, message):
-        """Thread-safe log appending."""
+        """Handle progress updates and regular messages"""
         self.log_area.configure(state="normal")
-        self.log_area.insert(tk.END, f"{message}\n")
+        
+        # Check for split progress pattern
+        if message.startswith("SPLIT_PROGRESS:"):
+            _, progress = message.split(":", 1)
+            current, total = progress.split("/")
+            new_text = f"Splitting page {current}/{total} completed"
+            
+            # Check if last line was a progress update
+            last_line_index = self.log_area.index('end-2c linestart')  # Get last line start
+            last_line_text = self.log_area.get(last_line_index, 'end-1c')
+            
+            if "Splitting page" in last_line_text:
+                # Delete previous progress line
+                self.log_area.delete(last_line_index, 'end-1c lineend')
+                self.log_area.insert(last_line_index, new_text)
+            else:
+                # New progress line
+                self.log_area.insert('end', '\n' + new_text)
+        else:
+            # Regular message (preserve newlines)
+            self.log_area.insert('end', message)
+        
         self.log_area.configure(state="disabled")
-        self.log_area.see(tk.END)  # Auto-scroll to bottom        
+        self.log_area.see('end')  # Auto-scroll     
 
     # --------------------- Core Functionality for Splitting ---------------------
     def toggle_compress_options(self):
         """Toggle compression level options visibility."""
-        state = tk.NORMAL if self.compress_before_split_var.get() else tk.DISABLED
+        state = tk.NORMAL if self.compress_after_split_var.get() else tk.DISABLED
         for widget in self.compression_frame.winfo_children():
             widget.config(state=state)
 
@@ -253,7 +274,7 @@ class SplittingOps:
             self.split_status_label_selected.config(text=f"Output folder: {folder}")
 
     def start_split(self):
-        if self.compress_before_split_var.get():
+        if self.compress_after_split_var.get():
             try:
                 gs_cmd = 'gswin64c' if sys.platform == 'win32' else 'gs'
                 subprocess.run([gs_cmd, "--version"], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -267,7 +288,7 @@ class SplittingOps:
             return
 
         # Get compression settings from UI
-        compress = self.compress_before_split_var.get()
+        compress = self.compress_after_split_var.get()
         compression_level = self.split_compression_level_var.get()
         
         self._prepare_for_split()
@@ -325,7 +346,7 @@ class SplittingOps:
         self.split_status_label_selected.config(text=f"Splitting page {current_page} of {total_pages}")
         
         # Change progress bar style based on compression
-        if self.compress_before_split_var.get():
+        if self.compress_after_split_var.get():
             self.progress.config(style='Compress.Horizontal.TProgressbar')
         else:
             self.progress.config(style='Normal.Horizontal.TProgressbar')
@@ -416,12 +437,9 @@ class SplittingOps:
         existing_files = [f for f in self.generated_files if os.path.exists(f)]
         has_available_files = len(existing_files) > 0
         
-        self.print_split_files_button.config(
-            state=tk.NORMAL if has_available_files else tk.DISABLED
-        )
-        self.open_output_folder_button.config(
-            state=tk.NORMAL if has_available_files else tk.DISABLED
-        )
+        self.print_split_files_button.config(state=tk.NORMAL if has_available_files else tk.DISABLED)
+        self.open_output_folder_button.config(state=tk.NORMAL if has_available_files else tk.DISABLED)
+        self.start_split_button.config(state=tk.NORMAL if (self.split_file and self.split_output_folder) else tk.DISABLED)
         
         # Update status label with availability info
         status_text = (

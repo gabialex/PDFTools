@@ -3,15 +3,18 @@ import os
 import subprocess
 from PyPDF2 import PdfReader, PdfWriter
 import time
+import sys
 
 def split_pdf(input_pdf, output_dir, split_type="all", compress=False, 
              compression_level="medium", update_callback=None, log_callback=None):
     filename = os.path.splitext(os.path.basename(input_pdf))[0]
-    generated_files = []  # Track all created files
+    generated_files = []
+    total_pages = 0  # Needed for final message
 
     try:
         if log_callback:
-            log_callback(f"Starting split of {filename}\n")
+            # Initial split start message
+            log_callback(f"Starting split of {filename}\n")  # Newline for separation
 
         if not os.path.exists(input_pdf):
             raise FileNotFoundError(f"Input PDF not found: {input_pdf}")
@@ -24,26 +27,28 @@ def split_pdf(input_pdf, output_dir, split_type="all", compress=False,
 
             for i in range(total_pages):
                 output_path = os.path.join(output_dir, f"{filename}_page_{i + 1}.pdf")
-                generated_files.append(output_path)  # Track every created file             
-                
+                generated_files.append(output_path)
+
                 # Split page
                 with PdfWriter() as writer:
                     writer.add_page(reader.pages[i])
                     with open(output_path, 'wb') as outfile:
                         writer.write(outfile)
-                        if log_callback:
-                            log_callback(f"Splitting page {i+1} from {filename} completed.")
+
+                # Send progress update (REPLACED individual messages)
+                if log_callback:
+                    log_callback(f"SPLIT_PROGRESS:{i+1}/{total_pages}")
 
                 # Compress if requested (ONCE per page)
                 if compress:
                     if log_callback:
-                        log_callback(f"Compressing page {i+1} from {filename} PDF")
+                        log_callback(f"\nCompressing page {i+1} from {filename} PDF")
                     try:
                         compression_worked = _compress_with_ghostscript(output_path, compression_level)
                         if not compression_worked and log_callback:
                             log_callback(f"Skipped compression for page {i+1} (Insufficient size reduction)")
                         elif log_callback:
-                            log_callback(f"Page {i+1} compressed successfully")
+                            log_callback(f"\nPage {i+1} compressed successfully")
                     except Exception as e:
                         if log_callback:
                             log_callback(f"Compression error on page {i+1} ({filename}): {str(e)}")
@@ -53,21 +58,29 @@ def split_pdf(input_pdf, output_dir, split_type="all", compress=False,
                     update_callback(i + 1, total_pages)
                 time.sleep(0.01)  # Allow UI updates
 
+            # Final completion message (ADDED NEWLINE AT START)
             if log_callback:
-                log_callback(f"\nSplited {filename} into {total_pages} files. Compressed: {compress}")
+                log_callback(f"\nSplit {filename} into {total_pages} files. Compressed: {compress}\n")
 
         return True, f"Split {filename} into {total_pages} files", generated_files 
         #return True, f"Splited {filename} into {total_pages} files. Compressed: {compress}"    
 
     except Exception as e:
         return False, f"Failed to split PDF: {str(e)}", []  # Empty list on failure
+    
+    except Exception as e:
+        for f in generated_files:
+            try: os.remove(f)
+            except: pass
+        return False, f"Failed to split PDF: {str(e)}", []
 
 def _compress_with_ghostscript(pdf_path, level="medium"):
     """Compress PDF only if it reduces size by at least 1%."""
     try:
         # Single Ghostscript check
+        gs_cmd = 'gswin64c' if sys.platform == 'win32' else 'gs'
         subprocess.run(
-            ["gswin64c", "--version"],
+            [gs_cmd, "--version"],
             check=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL

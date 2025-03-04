@@ -16,7 +16,6 @@ from gui.utils import ToolTip, CustomText
 from logic.ocr import ocr_pdf
 from .utils import is_directory_writable, truncate_filename
 
-
 class OCROpsFrame(ttk.Frame):
     def __init__(self, parent, controller):
         super().__init__(parent)
