@@ -6,6 +6,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from tkinter.scrolledtext import ScrolledText 
 import subprocess
+import time
 
 from logic.split import split_pdf  # Import the split logic
 from .utils import ToolTip, CustomText
@@ -38,11 +39,11 @@ class SplittingOps:
         self.setup_start_split()
         self.setup_split_status()        
         self.setup_log_area()
-        self.output_folder_button()    
+        self.setup_post_split_ops()    
 
     def setup_header(self):
         """Main header for splitting section."""
-        self.split_label = ttk.Label(self.splitting_frame, text="Split PDF File", style="Blue.TLabel")
+        self.split_label = ttk.Label(self.splitting_frame, text="Split PDF File", style="Green_Header.TLabel")
         self.split_label.pack(pady=3)
 
     def setup_file_selection(self):
@@ -53,17 +54,7 @@ class SplittingOps:
             command=self.select_split_file
         )
         self.select_split_file_button.pack(pady=5)
-        ToolTip(self.select_split_file_button, "Select a PDF file to split.")
-
-    def setup_split_status(self):
-        # Selected files counter
-        self.split_status_label_selected = ttk.Label(
-            self.splitting_frame,
-            text="",
-            font=self.font,
-            wraplength=400
-        )
-        self.split_status_label_selected.pack(pady=26)
+        ToolTip(self.select_split_file_button, "Select a PDF file to split.")    
 
     def setup_compression_options(self):
         """Compression-related controls."""
@@ -103,7 +94,7 @@ class SplittingOps:
         self.delete_checkbox.pack(pady=10)
         ToolTip(self.delete_checkbox, "Permanently remove original files after split")
 
-        self.toggle_compress_options()    
+        self.toggle_compress_options()
 
     def setup_output_folder(self):
         # Output folder selection
@@ -115,52 +106,10 @@ class SplittingOps:
         self.select_split_output_folder_button.pack(pady=10)
         ToolTip(self.select_split_output_folder_button, "Choose where to save split PDFs")
 
-    def output_folder_button(self):
-    # Open Output Folder button
-        self.open_output_folder_button = ttk.Button(
-            self.splitting_frame,
-            text="Open Output Folder",
-            command=self.open_output_folder,
-            state=tk.DISABLED
-        )
-        self.open_output_folder_button.pack(pady=10)
-        ToolTip(self.open_output_folder_button, "Open the output folder in file explorer")
-
-    def select_split_output_folder(self):
-        """Handle output folder selection for split files."""
-        folder = filedialog.askdirectory(title="Select Output Folder")
-        if folder:
-            self.split_output_folder = folder
-            self.split_status_label_selected.config(text=f"Output folder: {folder}")
-            self.open_output_folder_button.config(state=tk.NORMAL)  # Enable open button
-
-    def open_output_folder(self):
-        """Open the output folder in system file explorer."""
-        if not self.split_output_folder:
-            messagebox.showwarning("No Folder", "No output folder selected")
-            return
-            
-        if not os.path.isdir(self.split_output_folder):
-            messagebox.showerror("Missing Folder", "Output folder no longer exists")
-            return
-
-        try:
-            # Platform-specific folder opening
-            if sys.platform == "win32":
-                os.startfile(self.split_output_folder)
-            elif sys.platform == "darwin":
-                subprocess.run(["open", self.split_output_folder], check=True)
-            else:
-                subprocess.run(["xdg-open", self.split_output_folder], check=True)
-        except subprocess.CalledProcessError as e:
-            messagebox.showerror("Error", f"Failed to open folder: {e}")
-        except Exception as e:
-            messagebox.showerror("Error", f"Couldn't open folder: {str(e)}")
-
     def setup_progress_bar(self):
         """Progress bar and status labels."""
         self.progress_frame = ttk.Frame(self.splitting_frame)
-        self.progress_frame.pack(pady=20)
+        self.progress_frame.pack(pady=35)
         
         self.progress = ttk.Progressbar(
             self.progress_frame,
@@ -184,7 +133,16 @@ class SplittingOps:
             state=tk.DISABLED
         )
         self.start_split_button.pack(pady=10)
-        ToolTip(self.start_split_button, "Begin splitting process")    
+        ToolTip(self.start_split_button, "Begin splitting process")  
+
+    def setup_split_status(self):
+        # Selected files counter
+        self.split_status_label_selected = ttk.Label(
+            self.splitting_frame,
+            text="Select a PDF file to begin",            
+            wraplength=400
+        )
+        self.split_status_label_selected.pack(pady=10)    
 
     def setup_log_area(self):
         # Create a frame to hold the text widget and scrollbar
@@ -206,6 +164,61 @@ class SplittingOps:
         scrollbar = ttk.Scrollbar(text_frame, orient="vertical", command=self.log_area)
         scrollbar.pack(side="right", fill="y")
         self.log_area.config(yscrollcommand=scrollbar.set)
+
+    def setup_post_split_ops(self):
+        post_split_frame = ttk.Frame(self.splitting_frame)
+        post_split_frame.pack(pady=10)
+        
+        # Open Output Folder button
+        self.open_output_folder_button = ttk.Button(
+            post_split_frame,
+            text="Open Output Folder",
+            command=self.open_output_folder,
+            state=tk.DISABLED
+        )
+        self.open_output_folder_button.pack(side="left", padx=5)
+        ToolTip(self.open_output_folder_button, "Open the output folder in file explorer")
+
+        # Print splited files button
+        self.print_split_files_button = ttk.Button(
+            post_split_frame,
+            text="Print Split Pages",  # Fixed grammar
+            command=self.print_split_files,
+            state=tk.DISABLED
+        )
+        self.print_split_files_button.pack(side="left", padx=5)
+        ToolTip(self.print_split_files_button, "Print all individual split pages")  
+
+    def select_split_output_folder(self):
+        """Handle output folder selection for split files."""
+        folder = filedialog.askdirectory(title="Select Output Folder")
+        if folder:
+            self.split_output_folder = folder
+            self.split_status_label_selected.config(text=f"Output folder: {folder}")
+            #self.open_output_folder_button.config(state=tk.NORMAL)  # Enable open button
+
+    def open_output_folder(self):
+        """Open the output folder in system file explorer."""
+        if not self.split_output_folder:
+            messagebox.showwarning("No Folder", "No output folder selected")
+            return
+            
+        if not os.path.isdir(self.split_output_folder):
+            messagebox.showerror("Missing Folder", "Output folder no longer exists")
+            return
+
+        try:
+            # Platform-specific folder opening
+            if sys.platform == "win32":
+                os.startfile(self.split_output_folder)
+            elif sys.platform == "darwin":
+                subprocess.run(["open", self.split_output_folder], check=True)
+            else:
+                subprocess.run(["xdg-open", self.split_output_folder], check=True)
+        except subprocess.CalledProcessError as e:
+            messagebox.showerror("Error", f"Failed to open folder: {e}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Couldn't open folder: {str(e)}")      
 
     def append_log(self, message):
         """Thread-safe log appending."""
@@ -242,11 +255,13 @@ class SplittingOps:
     def start_split(self):
         if self.compress_before_split_var.get():
             try:
-                subprocess.run(["gswin64c", "--version"], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                gs_cmd = 'gswin64c' if sys.platform == 'win32' else 'gs'
+                subprocess.run([gs_cmd, "--version"], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             except:
                 messagebox.showerror("Ghostscript Required", "Install Ghostscript to use compression. \nDownload Ghostscript from https://www.ghostscript.com/")
                 self._reset_ui_state()  # Add this
                 return
+            
         if not self.split_file or not self.split_output_folder:
             messagebox.showwarning("Missing Input", "Select a file and output folder before splitting.")
             return
@@ -266,7 +281,8 @@ class SplittingOps:
 
     def split_file_thread(self, compress, compression_level):
         try:
-            success, summary = split_pdf(
+            # Modified to receive 3 return values
+            success, summary, output_files = split_pdf(
                 self.split_file,
                 self.split_output_folder,
                 compress=compress,
@@ -274,10 +290,14 @@ class SplittingOps:
                 update_callback=lambda f, p: self.root.after_idle(self._update_split_progress, f, p),
                 log_callback=lambda msg: self.root.after(0, self.append_log, msg)
             )
+            
             if success:
+                self.generated_files = output_files  # Store actual split files
                 self._handle_split_success(summary)
             else:
+                self.generated_files = []
                 self._handle_split_error(summary)
+
         except Exception as e:
             if "Ghostscript" in str(e):
                 self.root.after(0, lambda: messagebox.showerror(
@@ -292,12 +312,14 @@ class SplittingOps:
     def _prepare_for_split(self):
         """Prepare UI for splitting process."""
         self.split_status_label_selected.config(text="Starting splitting process...")
+        self.start_split_button.config(state=tk.DISABLED)
 
     def _update_split_progress(self, current_page, total_pages):
         """Update progress indicators with immediate UI refresh."""
         progress = int((current_page / total_pages) * 100)
         
         # Update progress components
+        self.total_pages = total_pages
         self.progress["value"] = progress
         self.progress_percentage_label.config(text=f"{progress}%")
         self.split_status_label_selected.config(text=f"Splitting page {current_page} of {total_pages}")
@@ -309,13 +331,14 @@ class SplittingOps:
             self.progress.config(style='Normal.Horizontal.TProgressbar')
         
         # Force immediate UI update
-        self.root.update_idletasks() 
+        self.root.update_idletasks()        
 
     def _handle_split_success(self, summary):
         msg = summary
         if self.delete_after_split_var.get():
-            os.remove(self.split_file)
-            msg += f"\n\nOriginal file '{os.path.basename(self.split_file)}' deleted."
+            if messagebox.askyesno("Confirm Deletion", "Delete original file?"):
+                os.remove(self.split_file)
+                msg += f"\n\nOriginal file '{os.path.basename(self.split_file)}' deleted."
         messagebox.showinfo("Split Successful", msg)
 
     def _handle_split_error(self, error):
@@ -330,9 +353,84 @@ class SplittingOps:
         )
         self.split_status_label_selected.config(text="Critical error occurred")
 
+    def print_split_files(self):
+        if not self.generated_files:
+            messagebox.showwarning("Error", "No split files available for printing")
+            return
+
+        # Check if ANY files exist before proceeding
+        existing_files = [f for f in self.generated_files if os.path.exists(f)]
+        if not existing_files:
+            messagebox.showerror("No Files", "All split files appear to be missing!")
+            self._reset_ui_state()  # Will disable the print button
+            return
+
+        try:
+            # Update confirmation message with ACTUAL existing files count
+            confirmed = messagebox.askyesno(
+                "Confirm Print",
+                f"Found {len(existing_files)}/{len(self.generated_files)} files\n"
+                "Proceed with printing available files?"
+            )
+            if not confirmed:
+                return
+
+            # Track successful print operations
+            successfully_printed = 0
+            
+            for file_path in self.generated_files:
+                if not os.path.exists(file_path):
+                    self.append_log(f"⚠️ Missing: {os.path.basename(file_path)}")
+                    continue
+
+                try:
+                    if sys.platform == "win32":
+                        os.startfile(file_path, "print")
+                    else:
+                        subprocess.run(["lp", file_path], check=True)
+                    
+                    successfully_printed += 1
+                    self.append_log(f"✅ Sent: {os.path.basename(file_path)}")
+                    time.sleep(0.5)
+                    
+                except Exception as file_error:
+                    self.append_log(f"❌ Failed {os.path.basename(file_path)}: {str(file_error)}")
+
+            # Accurate final message
+            msg = (
+                f"Print jobs submitted: {successfully_printed}\n"
+                f"Missing files: {len(self.generated_files) - len(existing_files)}\n"
+                f"Print errors: {len(existing_files) - successfully_printed}"
+            )
+            
+            if successfully_printed > 0:
+                messagebox.showinfo("Print Summary", msg)
+            else:
+                messagebox.showerror("Print Failed", "No files were printed successfully")
+
+        except Exception as e:
+            messagebox.showerror("Print Error", f"Critical failure: {str(e)}")        
+
     def _reset_ui_state(self):
-        """Reset UI to initial state after splitting."""
-        self.start_split_button.config(state=tk.NORMAL)
+        """Check ACTUAL file existence for UI state"""
+        existing_files = [f for f in self.generated_files if os.path.exists(f)]
+        has_available_files = len(existing_files) > 0
+        
+        self.print_split_files_button.config(
+            state=tk.NORMAL if has_available_files else tk.DISABLED
+        )
+        self.open_output_folder_button.config(
+            state=tk.NORMAL if has_available_files else tk.DISABLED
+        )
+        
+        # Update status label with availability info
+        status_text = (
+            f"Ready - {len(existing_files)}/{len(self.generated_files)} files available"
+            if self.generated_files else 
+            "Ready for new operation"
+        )
+        self.split_status_label_selected.config(text=status_text)
+        
+        # Reset progress bar
         self.progress["value"] = 0
-        self.progress_percentage_label.config(text="0%")
-        self.split_status_label_selected.config(text="Ready for new operation")
+        self.progress_percentage_label.config(text="0%")     

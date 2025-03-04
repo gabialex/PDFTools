@@ -4,11 +4,11 @@ import subprocess
 from PyPDF2 import PdfReader, PdfWriter
 import time
 
-# logic/split.py
 def split_pdf(input_pdf, output_dir, split_type="all", compress=False, 
              compression_level="medium", update_callback=None, log_callback=None):
-    """Split PDF into multiple files with optional Ghostscript compression."""
     filename = os.path.splitext(os.path.basename(input_pdf))[0]
+    generated_files = []  # Track all created files
+
     try:
         if log_callback:
             log_callback(f"Starting split of {filename}\n")
@@ -23,7 +23,8 @@ def split_pdf(input_pdf, output_dir, split_type="all", compress=False,
             total_pages = len(reader.pages)
 
             for i in range(total_pages):
-                output_path = os.path.join(output_dir, f"{filename}_page_{i + 1}.pdf")               
+                output_path = os.path.join(output_dir, f"{filename}_page_{i + 1}.pdf")
+                generated_files.append(output_path)  # Track every created file             
                 
                 # Split page
                 with PdfWriter() as writer:
@@ -54,11 +55,12 @@ def split_pdf(input_pdf, output_dir, split_type="all", compress=False,
 
             if log_callback:
                 log_callback(f"\nSplited {filename} into {total_pages} files. Compressed: {compress}")
-        return True, f"Splited {filename} into {total_pages} files. Compressed: {compress}"
-    
+
+        return True, f"Split {filename} into {total_pages} files", generated_files 
+        #return True, f"Splited {filename} into {total_pages} files. Compressed: {compress}"    
 
     except Exception as e:
-        return False, f"Failed to split PDF: {str(e)}"
+        return False, f"Failed to split PDF: {str(e)}", []  # Empty list on failure
 
 def _compress_with_ghostscript(pdf_path, level="medium"):
     """Compress PDF only if it reduces size by at least 1%."""

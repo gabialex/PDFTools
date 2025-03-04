@@ -245,7 +245,8 @@ class CompressionOps:
         self.open_folder_btn = ttk.Button(
             self.open_output_folder_frame,
             text="Open Output Folder",
-            command=self.open_output_folder
+            command=self.open_output_folder,
+            state = tk.DISABLED
         )
         self.open_folder_btn.pack(pady=5)
         ToolTip(self.open_folder_btn, "Open the output folder in file explorer")
@@ -482,6 +483,7 @@ class CompressionOps:
         4. Process with configurable pauses
         5. Handle cleanup and reporting
         """
+        self.open_folder_btn.config(state = tk.DISABLED, style='TButton')      
         total_files = len(self.pdf_files)
         stats = {"original": 0, "compressed": 0, "skipped": 0}
         results = []
@@ -618,7 +620,7 @@ class CompressionOps:
         state = tk.DISABLED if start else tk.NORMAL
         self.start_button.config(state=state)
         self.cancel_button.config(state=not state)
-        self.cancel_button.config(style = 'RedTextHover.TButton')        
+        self.cancel_button.config(style = 'RedTextHover.TButton')          
 
     def _update_progress(self, progress: int):
         """Update progress bar"""
@@ -649,9 +651,9 @@ class CompressionOps:
 
     def _finalize_compression(self, stats):
         """Show formatted summary with proper number formatting"""
-        self.start_button.config(state=tk.DISABLED, style='TButton')
-        
+        self.start_button.config(state=tk.DISABLED, style='TButton')        
         self.cancel_button.config(state=tk.DISABLED, style='TButton')
+        self.open_folder_btn.config(state = tk.NORMAL, style='TButton')
 
         success_count = len(self.pdf_files) - stats['skipped']
         total_reduction_bytes = stats['original'] - stats['compressed']

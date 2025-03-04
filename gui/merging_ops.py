@@ -200,20 +200,22 @@ class MergingOps:
 
     def setup_post_merge_controls(self):
         """Post-merge action controls."""
-        button_frame = ttk.Frame(self.merging_frame)
-        button_frame.pack(pady=10)
+        post_merge_frame = ttk.Frame(self.merging_frame)
+        post_merge_frame.pack(pady=10)
 
-        self.open_output_folder= ttk.Button(
-            button_frame,
+        # Open Output Folder btn
+        self.open_output_folder_button= ttk.Button(
+            post_merge_frame,
             text="Open Output Folder",
             command=self.open_output_folder,
             state=tk.DISABLED
         )
-        self.open_output_folder.pack(side="left", padx=5)
-        ToolTip(self.open_output_folder, "Open the output folder in file explorer")        
+        self.open_output_folder_button.pack(side="left", padx=5)
+        ToolTip(self.open_output_folder_button, "Open the output folder in file explorer")
 
+        # Open merged file btn
         self.open_merged_file_button = ttk.Button(
-            button_frame,
+            post_merge_frame ,
             text="Open Merged File",
             command=self.open_merged_file,
             state=tk.DISABLED
@@ -221,8 +223,9 @@ class MergingOps:
         self.open_merged_file_button.pack(side="left", padx=5)
         ToolTip(self.open_merged_file_button, "Open merged PDF in default viewer")
 
+        # Print merged file btn
         self.print_merged_file_button = ttk.Button(
-            button_frame,
+            post_merge_frame,
             text="Print Merged File",
             command=self.print_merged_file,
             state=tk.DISABLED
@@ -404,7 +407,7 @@ class MergingOps:
         """Handle successful merge with clean formatting."""        
         self.open_merged_file_button.config(state=tk.NORMAL)
         self.print_merged_file_button.config(state=tk.NORMAL)
-        self.open_output_folder.config(state=tk.NORMAL)
+        self.open_output_folder_button.config(state=tk.NORMAL)
         
         # Helper function for size formatting
         def format_size(bytes_size):
