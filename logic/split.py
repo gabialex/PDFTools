@@ -3,27 +3,36 @@ import os
 import subprocess
 from PyPDF2 import PdfReader, PdfWriter
 import time
-import sys
 
-def split_pdf(input_pdf, output_dir, split_type="all", compress=False, 
-             compression_level="medium", update_callback=None, log_callback=None):
+from gui.utils import truncate_filename
+
+def split_pdf(input_pdf, 
+              output_dir, 
+              compress=False, 
+              compression_level="medium", 
+              update_callback=None, 
+              log_callback=None):
+    
     filename = os.path.splitext(os.path.basename(input_pdf))[0]
     generated_files = []
-    total_pages = 0  # Needed for final message
+    total_pages = 0
+    compression_stats = {
+        'success': 0, 
+        'skipped': 0, 
+        'errors': 0,
+        'total_original': 0,  # bytes
+        'total_compressed': 0  # bytes
+    }
 
     try:
         if log_callback:
-            # Initial split start message
-            log_callback(f"Starting split of {filename}\n")  # Newline for separation
-
-        if not os.path.exists(input_pdf):
-            raise FileNotFoundError(f"Input PDF not found: {input_pdf}")
-
-        os.makedirs(output_dir, exist_ok=True)
+            filename = truncate_filename(filename, '...', 45)
+            #log_callback(f"Processing: {filename}")
 
         with open(input_pdf, 'rb') as infile:
             reader = PdfReader(infile)
             total_pages = len(reader.pages)
+            log_callback(f"\n▶ Processing {filename} ({total_pages} pages)")
 
             for i in range(total_pages):
                 output_path = os.path.join(output_dir, f"{filename}_page_{i + 1}.pdf")
@@ -35,50 +44,92 @@ def split_pdf(input_pdf, output_dir, split_type="all", compress=False,
                     with open(output_path, 'wb') as outfile:
                         writer.write(outfile)
 
-                # Send progress update (REPLACED individual messages)
+                # Get size before compression
+                original_size = os.path.getsize(output_path)
+                final_size = original_size
+
+                # Handle compression
+                if compress:
+                    try:
+                        compression_worked, new_size = _compress_with_ghostscript(
+                            output_path, 
+                            compression_level
+                        )
+                        
+                        if compression_worked:
+                            compression_stats['success'] += 1
+                        else:
+                            compression_stats['skipped'] += 1
+                            
+                        final_size = new_size
+                    except Exception as e:
+                        compression_stats['errors'] += 1
+                        final_size = original_size  # File remains unchanged
+                        if log_callback:
+                            log_callback(f"⚠️ Compression error on page {i+1}: {str(e)}")
+
+                    # Update size tracking
+                    compression_stats['total_original'] += original_size
+                    compression_stats['total_compressed'] += final_size
+
+                # Update split progress
                 if log_callback:
                     log_callback(f"SPLIT_PROGRESS:{i+1}/{total_pages}")
 
-                # Compress if requested (ONCE per page)
-                if compress:
-                    if log_callback:
-                        log_callback(f"\nCompressing page {i+1} from {filename} PDF")
-                    try:
-                        compression_worked = _compress_with_ghostscript(output_path, compression_level)
-                        if not compression_worked and log_callback:
-                            log_callback(f"Skipped compression for page {i+1} (Insufficient size reduction)")
-                        elif log_callback:
-                            log_callback(f"\nPage {i+1} compressed successfully")
-                    except Exception as e:
-                        if log_callback:
-                            log_callback(f"Compression error on page {i+1} ({filename}): {str(e)}")
-
-                # Update progress after split+compress
                 if update_callback:
                     update_callback(i + 1, total_pages)
-                time.sleep(0.01)  # Allow UI updates
+                time.sleep(0.01)
 
-            # Final completion message (ADDED NEWLINE AT START)
+            # Final messages
             if log_callback:
-                log_callback(f"\nSplit {filename} into {total_pages} files. Compressed: {compress}\n")
+                message = f"\n  • {filename} split into {total_pages} files."
+                if not compress:
+                    log_callback(message + '\n  - Split pages status: Uncompressed') 
 
-        return True, f"Split {filename} into {total_pages} files", generated_files 
-        #return True, f"Splited {filename} into {total_pages} files. Compressed: {compress}"    
+                if compress:                    
+                    _log_compression_summary(compression_stats, log_callback)
+                    log_callback(message + '\n  - Split pages status: Compressed')
 
-    except Exception as e:
-        return False, f"Failed to split PDF: {str(e)}", []  # Empty list on failure
-    
+        return True, f"\n{filename} split into {total_pages} files", generated_files
+
     except Exception as e:
         for f in generated_files:
             try: os.remove(f)
             except: pass
         return False, f"Failed to split PDF: {str(e)}", []
+    
+def _log_compression_summary(stats, log_callback):
+    """Helper to format compression statistics"""
+    try:
+        total_original = stats['total_original']
+        total_compressed = stats['total_compressed']
+        saved = total_original - total_compressed
+        
+        # Convert bytes to MB
+        mb_original = total_original / (1024 * 1024)
+        mb_compressed = total_compressed / (1024 * 1024)
+        mb_saved = saved / (1024 * 1024)
+        
+        # Calculate percentage saved
+        ratio = (saved / total_original * 100) if total_original > 0 else 0
+        
+        summary = (
+            "\n\nCompression Summary:\n"
+            f"• Successfully compressed: {stats['success']} pages\n"
+            f"• Skipped (no gain): {stats['skipped']} pages\n"
+            f"• Errors: {stats['errors']} pages\n"
+            f"• Total size before: {mb_original:.2f} MB\n"
+            f"• Total size after: {mb_compressed:.2f} MB\n"
+            f"• Space saved: {mb_saved:.2f} MB ({ratio:.1f}% reduction)"
+        )
+        log_callback(summary)
+    except Exception as e:
+        log_callback(f"\n⚠️ Failed to generate compression summary: {str(e)}")
 
 def _compress_with_ghostscript(pdf_path, level="medium"):
-    """Compress PDF only if it reduces size by at least 1%."""
+    """Returns tuple: (compression_applied: bool, new_size: int)"""
     try:
-        # Single Ghostscript check
-        gs_cmd = 'gswin64c' if sys.platform == 'win32' else 'gs'
+        gs_cmd = 'gswin64c' if os.name == 'nt' else 'gs'
         subprocess.run(
             [gs_cmd, "--version"],
             check=True,
@@ -86,8 +137,8 @@ def _compress_with_ghostscript(pdf_path, level="medium"):
             stderr=subprocess.DEVNULL
         )
     except (FileNotFoundError, subprocess.CalledProcessError):
-        raise RuntimeError("Ghostscript not found. Install from https://www.ghostscript.com/")
-    
+        raise RuntimeError("Ghostscript not found")
+
     levels = {
         "high": "/printer",
         "medium": "/ebook",
@@ -96,13 +147,12 @@ def _compress_with_ghostscript(pdf_path, level="medium"):
     
     temp_path = f"{pdf_path}_temp"
     original_size = os.path.getsize(pdf_path)
-    size_threshold = 0.99  # Require at least 1% size reduction
-    
+    size_threshold = 0.99  # Require 1% reduction
+
     try:
-        # Run Ghostscript compression
         subprocess.run(
             [
-                "gswin64c",
+                gs_cmd,
                 "-q",
                 "-dNOPAUSE",
                 "-dBATCH",
@@ -116,19 +166,18 @@ def _compress_with_ghostscript(pdf_path, level="medium"):
             creationflags=subprocess.CREATE_NO_WINDOW
         )
 
-        # Check if compression was beneficial
         new_size = os.path.getsize(temp_path)
         
         if new_size < (original_size * size_threshold):
-            os.replace(temp_path, pdf_path)  # Keep compressed version
-            return True
+            os.replace(temp_path, pdf_path)
+            return True, new_size
         else:
-            return False  # Compression didn't help enough
+            os.remove(temp_path)
+            return False, original_size
 
     except subprocess.CalledProcessError as e:
-        error_msg = e.stderr.decode().strip() or "Unknown Ghostscript error"
-        raise RuntimeError(f"Compression failed: {error_msg}")
+        error_msg = e.stderr.decode().strip() or "Unknown error"
+        raise RuntimeError(f"Ghostscript failed: {error_msg}")
     finally:
-        # Cleanup temp file if it exists
         if os.path.exists(temp_path):
-            os.remove(temp_path)
+            os.remove(temp_path)    

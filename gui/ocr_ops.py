@@ -74,15 +74,15 @@ class OCROpsFrame(ttk.Frame):
 
     # ---------------------------------- UI Setup Methods ---------------------
     def setup_ocr_header(self):
-        self.ocr_label = ttk.Label(self.ocr_frame, text="OCR PDF Files", style="Blue.TLabel")
-        self.ocr_label.pack(pady=3)
+        self.ocr_label = ttk.Label(self.ocr_frame, text="OCR PDF Files", style="Blue_Header.TLabel")
+        self.ocr_label.pack(pady=5)
 
     def setup_ocr_file_selection(self): 
         """File selection for input PDF or directory for batch processing."""
         
         # Create a frame for the buttons
         button_frame = ttk.Frame(self.ocr_frame)
-        button_frame.pack(pady=5)
+        button_frame.pack(pady=20)
 
         # Button for selecting folder        
         folder_button = ttk.Button(button_frame, text="Select Folder", command=self.select_folder)
@@ -452,8 +452,8 @@ class OCROpsFrame(ttk.Frame):
             # Enable the button and apply the blue color style
             style = ttk.Style()
             style.configure("Blue.TButton", foreground="red", background="lightgrey")
-            self.run_button.config(state="normal", style="Blue.TButton")            
-            self.cancel_button.config(state="normal", style="Blue.TButton")
+            self.run_button.config(state="normal", style="Ready.TButton")            
+            self.cancel_button.config(state="normal", style=".RedTextHover.TButton")
         else:
             # Disable the button if no files are selected
             self.run_button.config(state="disabled", style="")

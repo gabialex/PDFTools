@@ -21,7 +21,7 @@ class MainWindow(tk.Tk):
         # Set initial size based on screen dimensions
         screen_width = self.winfo_screenwidth()
         screen_height = self.winfo_screenheight()
-        self.geometry(f"{int(screen_width*0.8)}x{int(screen_height*0.75)}")
+        self.geometry(f"{int(screen_width*0.8)}x{int(screen_height*0.8)}")
         self.minsize(800, 600)  # Minimum size
 
         try:
@@ -60,7 +60,7 @@ class MainWindow(tk.Tk):
 
             },
             'dark': {
-                'background': '#121212',        # Dark gray background
+                'background': '#0D0D0D',        # Even darker gray background
                 'surface': '#2D2D2D',           # Dark gray for other elements
                 'primary_accent': '#4A90E2',    # Keep original blue accent
                 'secondary_accent': '#6C757D',  # Keep original gray accent
@@ -145,27 +145,100 @@ class MainWindow(tk.Tk):
         # Configure main styles
         self.configure(background=colors['background'])
         
-        # Frame styles
+        # FRAMES
         self.style.configure('Main.TFrame',
             background=colors['background'],
-            borderwidth=0)
-        
+            borderwidth=0,
+            relief="flat",
+            padding=(5, 5))
+
         self.style.configure('TopRight.TFrame',
             background=colors['background'],
-            borderwidth=1)
+            borderwidth=0,
+            relief="ridge",
+            padding=(5, 5))
 
-        # Headers Style
+        # Add a modern shadow effect to frames
+        self.style.configure('Shadow.TFrame',
+            background=colors['background'],
+            borderwidth=2,
+            relief="flat",
+            padding=(5, 5))
+
+        # Apply shadow effect to main frame
+        self.main_frame.configure(style='Shadow.TFrame')
+
+        # ----------------- HEADERS ---------------------
+        # Green Theme
         self.style.configure('Green_Header.TLabel',
             foreground='green',
-            font = ("Segoe UI", 10, "bold"))
+            background='lightgray' if self.current_theme == 'light' else 'gray',
+            font=("Segoe UI", 10, "bold"),
+            borderwidth=2,
+            relief="solid",
+            padding=(5, 5, 5, 5)
+        )
 
-        # Label styles (Statuses: Normal, Status, Warning)
+        # Red Theme
+        self.style.configure('Red_Header.TLabel',
+            foreground='red',
+            background='black',
+            font=("Segoe UI", 10, "bold"),
+            borderwidth=2,
+            relief="solid",
+            padding=(5, 5, 5, 5)
+        )
+
+        # Blue Theme
+        self.style.configure('Blue_Header.TLabel',
+            foreground='blue',
+            #background='#E0F7FA',  # Very light blue
+            font=("Segoe UI", 10, "bold"),
+            borderwidth=0,
+            relief="solid",
+            padding=(5, 5, 5, 5),
+            bordercolor='#00ACC1'  # More intense blue
+        )        
+
+        # Orange Theme
+        self.style.configure('Orange_Header.TLabel',
+            foreground='orange',
+            background='darkgray',
+            font=("Segoe UI", 10, "bold"),
+            borderwidth=2,
+            relief="solid",
+            padding=(5, 5, 5, 5)
+        )
+
+        # Headers Style - Purple Theme
+        self.style.configure('Purple_Header.TLabel',
+            foreground='purple',
+            background='lavender',
+            font=("Segoe UI", 10, "bold"),
+            borderwidth=2,
+            relief="solid",
+            padding=(5, 5, 5, 5)
+        )
+
+        # -------------------------------- LABELS --------------------------------
         self.style.configure('Normal.TLabel',            
             foreground=colors['text'] if self.current_theme == 'light' else 'black',
             font=("Segoe UI", 9))
         
         self.style.configure('Status.TLabel',            
-            foreground='#29A745' if self.current_theme == 'light' else '#57D655',  # Green shades for status
+            foreground='darkgreen',  # Green shades for status
+            font=("Segoe UI Semibold", 9))
+        
+        self.style.configure('Blue.TLabel',
+            foreground='blue',  
+            font=("Segoe UI Semibold", 9))
+        
+        self.style.configure('Orange.TLabel',
+            bordercolor=colors['secondary_accent'],
+            highlightbackground="#FF8C00",
+            background='#FFA500' if self.current_theme == 'light' else '#FF8C00',  # Orange shades
+            thickness=1,
+            relief="sunken",
             font=("Segoe UI", 9))
         
         self.style.configure('Warning.TLabel',
@@ -173,6 +246,7 @@ class MainWindow(tk.Tk):
             foreground='#DC3545' if self.current_theme == 'light' else '#FF4C4C',  # Red shades for warnings
             font=("Segoe UI", 9))
         
+        # ------------------------ BUTTONS ------------------------
         # Button styles
         self.style.configure('TButton',
             background=colors['surface'],
@@ -207,14 +281,6 @@ class MainWindow(tk.Tk):
                 ('pressed', 'sunken')  # NEW: Physical click feedback
             ]
         )
-        
-        self.style.configure('Icon.TButton',
-            background=colors['surface'],
-            foreground=colors['text'],
-            bordercolor=colors['secondary_accent'],
-            relief="flat",
-            borderwidth=1,
-            padding=2)
         
         # Warning button
         self.style.configure('RedText.TButton',
@@ -253,7 +319,6 @@ class MainWindow(tk.Tk):
             padding=(12, 4),
             font=("Segoe UI Semibold", 10),
             anchor="center")
-
         
         # Map states for Ready button
         self.style.map('Ready.TButton',
@@ -265,9 +330,22 @@ class MainWindow(tk.Tk):
                 ('active', 'darkgreen'),  # Brighter green on hover
                 ('pressed', colors['surface'])
             ],
+            bordercolor=[
+                ('active', colors['success']),  # NEW: Border color on hover
+                ('pressed', colors['success'])  # NEW: Border color on press
+            ],
             relief=[('pressed', 'sunken')]
-        )                
+        )         
+        # Icon Buttons      
+        self.style.configure('Icon.TButton',
+            background=colors['surface'],
+            foreground=colors['text'],
+            bordercolor=colors['secondary_accent'],
+            relief="flat",
+            borderwidth=1,
+            padding=2)               
         
+        # ----------------------------- ENTRIES -----------------------------------
         # Entry styles
         self.style.configure('TEntry',
             fieldbackground=colors['surface'],
@@ -275,6 +353,7 @@ class MainWindow(tk.Tk):
             bordercolor=colors['secondary_accent'],
             insertcolor=colors['text'])
 
+        # ----------------------------- CHECKBOXES ---------------------------------
         # Checkbox styles (Normal, Status, Warning)
         self.style.configure('Normal.TCheckbutton',            
             foreground=colors['text'],
@@ -299,6 +378,7 @@ class MainWindow(tk.Tk):
             ('selected', '#DC3545')  # Brighter red color when checked
         ])
         
+        # -------------------------- PROGRESS BARS -------------------------------
         # Progress bar styles
         self.style.configure('Normal.Horizontal.TProgressbar',
             troughcolor=colors['surface'],
@@ -314,7 +394,7 @@ class MainWindow(tk.Tk):
             thickness=8,
             lightcolor='#FFA500' if self.current_theme == 'light' else '#FF8C00',
             darkcolor='#FFB74D' if self.current_theme == 'light' else '#FFB74D',
-            troughrelief="flat")
+            troughrelief="sunken")
 
         self.style.configure('Working.Horizontal.TProgressbar',
             troughcolor=colors['surface'],
@@ -324,7 +404,13 @@ class MainWindow(tk.Tk):
             lightcolor='#FFA500' if self.current_theme == 'light' else '#FF8C00',
             darkcolor='#FFA500' if self.current_theme == 'light' else '#FF8C00',
             troughrelief="flat")
+        
+        self.style.configure("Pulse.Horizontal.TProgressbar", 
+            troughcolor=colors['surface'], 
+            lightcolor=colors['primary_accent'], 
+            darkcolor=colors['primary_accent'])
 
+        # -------------------------- TEXT AREA -----------------------------------
         # Text widget styling
         text_config = {
             'background': colors['surface'],

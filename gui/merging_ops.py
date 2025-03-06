@@ -47,8 +47,8 @@ class MergingOps:
     # --------------------- UI Setup Methods ---------------------
     def setup_header(self):
         """Main header for merging section."""
-        self.merge_label = ttk.Label(self.merging_frame, text="Merge PDF Files", style="Blue.TLabel")
-        self.merge_label.pack(pady=3)
+        self.merge_label = ttk.Label(self.merging_frame, text="Merge PDF Files", style="Blue_Header.TLabel")
+        self.merge_label.pack(pady=5)
 
     def setup_file_selection(self):
         """File selection controls."""
@@ -58,7 +58,7 @@ class MergingOps:
             text="Select PDFs to Merge",
             command=self.select_merge_files
         )
-        self.select_merge_files_button.pack(pady=5)
+        self.select_merge_files_button.pack(pady=20)
         ToolTip(self.select_merge_files_button, "Select multiple PDF files to merge.")
 
     def setup_merge_status_label(self):

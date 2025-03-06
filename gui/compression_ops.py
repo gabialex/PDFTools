@@ -25,7 +25,6 @@ class CompressionOps:
         self.lock = Lock()
         self.pulse_active = False
         self.start_time = None
-        self._create_pulse_style()
 
     def setup_variables(self):
         """Initialize compression variables."""
@@ -56,13 +55,13 @@ class CompressionOps:
         self.header_frame = ttk.Frame(self.compression_frame)
         self.header_frame.pack(pady=5)
 
-        self.header_label = ttk.Label(self.header_frame, text="Compress PDF Files", style = 'Green_Header.TLabel')
+        self.header_label = ttk.Label(self.header_frame, text="Compress PDF Files", style = 'Blue_Header.TLabel')
         self.header_label.pack(side="left", padx=5)
 
     def setup_compression_buttons(self):
         """Buttons for selecting directory/files."""
         self.select_buttons_frame = ttk.Frame(self.compression_frame)
-        self.select_buttons_frame.pack(pady=10)
+        self.select_buttons_frame.pack(pady=20)
 
         buttons = [
             ("Select Folder", self.select_directory, "Choose a directory containing PDF files"),
@@ -77,7 +76,7 @@ class CompressionOps:
     def setup_compression_options(self):
         """Compression level radio buttons."""
         self.compression_options_frame = ttk.Frame(self.compression_frame)
-        self.compression_options_frame.pack(pady=5)
+        self.compression_options_frame.pack(pady=10)
 
         self.compression_level_var = tk.StringVar(value="medium")
         levels = [("High", "high"), ("Medium", "medium"), ("Low", "low")]
@@ -293,18 +292,7 @@ class CompressionOps:
             return self.directory
         return None
     
-    # -------- Additional Methods for progress bar ---------
-    def _create_pulse_style(self):
-        """Create custom progress bar styles for pulsing effect"""
-        style = ttk.Style()
-        style.configure("Pulse.Horizontal.TProgressbar",
-                        troughcolor='#f0f0f0',
-                        background='#1976D2',
-                        lightcolor='#64B5F6',
-                        darkcolor='#0D47A1')
-        style.configure("Normal.Horizontal.TProgressbar",
-                        troughcolor='#f0f0f0',
-                        background='#4CAF50')
+    # -------- Additional Methods for progress bar ---------   
         
     def _start_visual_feedback(self):
         """Start visual indicators for long operations"""
@@ -326,7 +314,7 @@ class CompressionOps:
             current_style = self.progress.cget('style')
             new_style = 'Working.Horizontal.TProgressbar' if 'Normal' in current_style else 'Normal.Horizontal.TProgressbar'
             self.progress.config(style=new_style)
-            self.root.after(900, self._pulse_animation)
+            self.root.after(600, self._pulse_animation)
 
     
 
@@ -365,11 +353,13 @@ class CompressionOps:
         """Update UI with selected file count."""
         count = len(self.pdf_files)
         if count > 0:
-            self.status_label.config(text=f"Ready: {count} PDFs selected")
+            self.status_label.config(text = 
+                                     f"{count} PDFs selected. Press Start Compression to proceed.", 
+                                     style = 'Status.TLabel')
             self.start_button.config(state=tk.NORMAL), 
             self.start_button.config(style = "Ready.TButton")    
         else:
-            self.status_label.config(text="No valid PDF files found")
+            self.status_label.config(text="No valid PDF files found", style = 'Warning.TLabel')
             self.start_button.config(state=tk.DISABLED)
 
     def start_compression(self):
@@ -568,7 +558,7 @@ class CompressionOps:
         self._finalize_compression(stats)
         
         # Safe status reset        
-        self.root.after(0, lambda: self.status_label.config(text="Status: Idle"))
+        self.root.after(0, lambda: self.status_label.config(text="Status: Idle", style = ""))
         self.root.after(0, lambda: self.progress_percentage_label.config(text="0%"))
         self.progress["value"] = 0    
 
@@ -611,7 +601,7 @@ class CompressionOps:
     def cancel_compression(self):
         """Handle compression cancellation."""
         self.cancel_flag = True
-        self.status_label.config(text="Cancelling...")
+        self.status_label.config(text="Cancelling...", style = 'Warning.TLabel')
         self.cancel_button.config(state=tk.DISABLED)        
 
     # --------------------- UI Update Methods ---------------------

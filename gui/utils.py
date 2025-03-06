@@ -5,6 +5,22 @@ import os
 import uuid
 from pathlib import Path
 
+def format_time(seconds):
+        """Convert seconds to H:MM:SS format"""
+        try:
+            seconds = int(seconds)
+            hours = seconds // 3600
+            minutes = (seconds % 3600) // 60
+            seconds = seconds % 60
+            
+            if hours > 0:
+                return f"{hours}h {minutes:02d}m"
+            elif minutes > 0:
+                return f"{minutes}m {seconds:02d}s  "
+            return f"{seconds}s"
+        except:
+            return "--:--"     
+
 def truncate_path(
     path: str,
     max_folders: int = 2,
@@ -12,8 +28,7 @@ def truncate_path(
     max_length: int = 50
 ) -> str:
     """
-    Enhanced path truncation with mixed separator support.
-    Forces forward slashes for consistency in display.
+    Path truncation with mixed separator support. Forces forward slashes for consistency in display.
     """
     # Normalize path to handle mixed separators
     normalized = Path(path).as_posix()  # Convert all separators to /
@@ -46,7 +61,10 @@ def truncate_path(
     # Final length check
     return truncated if len(truncated) <= max_length else f"{root}{ellipsis}/{filename}"
 
-def truncate_filename(file: str, ellipsis: str = "-->", max_length: int = 50) -> str:
+def truncate_filename(file: str, 
+                      ellipsis: str = "-->", 
+                      max_length: int = 50) -> str:
+    
     if len(file) <= max_length:
         return file
     
