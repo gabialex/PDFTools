@@ -449,11 +449,9 @@ class OCROpsFrame(ttk.Frame):
     def check_run_button_state(self):
         """Enable the Run OCR and Cancel buttons and change their color if files are selected."""
         if hasattr(self, 'file_paths') and self.file_paths:
-            # Enable the button and apply the blue color style
-            style = ttk.Style()
-            style.configure("Blue.TButton", foreground="red", background="lightgrey")
+            # Enable the button and apply color style            
             self.run_button.config(state="normal", style="Ready.TButton")            
-            self.cancel_button.config(state="normal", style=".RedTextHover.TButton")
+            self.cancel_button.config(state="normal", style="RedText.TButton")
         else:
             # Disable the button if no files are selected
             self.run_button.config(state="disabled", style="")

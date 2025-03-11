@@ -27,7 +27,7 @@ class MainWindow(tk.Tk):
         try:
             self.iconbitmap('assets/PDFTools2.ico')
         except tk.TclError:
-            pass  # Handle missing icon gracefully
+            pass  # Handle missing icon
 
         # Initialize style
         self.style = ttk.Style()
@@ -56,7 +56,7 @@ class MainWindow(tk.Tk):
                 'border': '#424242',
                 'danger': '#DC3545',
                 'success': '#28A745',
-                'warning': '#FFC107'        
+                'warning': '#FFC107'                     
 
             },
             'dark': {
@@ -168,7 +168,7 @@ class MainWindow(tk.Tk):
         # Apply shadow effect to main frame
         self.main_frame.configure(style='Shadow.TFrame')
 
-        # ----------------- HEADERS ---------------------
+        # ---------------------------- HEADERS -----------------------------#
         # Green Theme
         self.style.configure('Green_Header.TLabel',
             foreground='green',
@@ -220,7 +220,7 @@ class MainWindow(tk.Tk):
             padding=(5, 5, 5, 5)
         )
 
-        # -------------------------------- LABELS --------------------------------
+        # ----------------------------- LABELS --------------------------- #
         self.style.configure('Normal.TLabel',            
             foreground=colors['text'] if self.current_theme == 'light' else 'black',
             font=("Segoe UI", 9))
@@ -246,8 +246,8 @@ class MainWindow(tk.Tk):
             foreground='#DC3545' if self.current_theme == 'light' else '#FF4C4C',  # Red shades for warnings
             font=("Segoe UI", 9))
         
-        # ------------------------ BUTTONS ------------------------
-        # Button styles
+        # ----------------------------- BUTTONS --------------------------- #
+        
         self.style.configure('TButton',
             background=colors['surface'],
             foreground=colors['text'],
@@ -286,16 +286,11 @@ class MainWindow(tk.Tk):
         self.style.configure('RedText.TButton',
         background=colors['surface'],
         foreground='#DC3545',  # Bootstrap danger red
-        bordercolor=colors['secondary_accent'],
+        bordercolor=colors['warning'],
         relief="flat",
         padding=(12, 4),
         font=("Segoe UI Semibold", 10),
-        anchor="center")
-
-        self.style.configure('RedTextHover.TButton',
-            background=colors['hover'],
-            foreground='#DC3545' if self.current_theme == 'light' else 'yellow',
-            bordercolor='#DC3545')
+        anchor="center")       
 
         # Map states for red text button
         self.style.map('RedText.TButton',
@@ -307,13 +302,20 @@ class MainWindow(tk.Tk):
                 ('active', '#FF0000'),  # Brighter red on hover
                 ('pressed', colors['surface'])
             ],
-            relief=[('pressed', 'sunken')]
+            bordercolor=[
+                ('active', colors['danger']),  # NEW: Border color on hover
+                ('pressed', colors['danger'])  # NEW: Border color on press
+            ],
+            relief=[
+                ('active', 'groove'),  # NEW: Gives tactile feedback on hover
+                ('pressed', 'sunken')  # NEW: Physical click feedback
+            ]
         )
 
         # Ready button
         self.style.configure('Ready.TButton',
             background=colors['surface'],
-            foreground='green' if self.current_theme == 'light' else 'orange',
+            foreground='green' if self.current_theme == 'light' else 'yellow',
             bordercolor=colors['secondary_accent'],
             relief="flat",
             padding=(12, 4),
@@ -334,8 +336,12 @@ class MainWindow(tk.Tk):
                 ('active', colors['success']),  # NEW: Border color on hover
                 ('pressed', colors['success'])  # NEW: Border color on press
             ],
-            relief=[('pressed', 'sunken')]
-        )         
+            relief=[
+                ('active', 'groove'),  # NEW: Gives tactile feedback on hover
+                ('pressed', 'sunken')  # NEW: Physical click feedback
+            ]
+        )
+        
         # Icon Buttons      
         self.style.configure('Icon.TButton',
             background=colors['surface'],
@@ -345,7 +351,7 @@ class MainWindow(tk.Tk):
             borderwidth=1,
             padding=2)               
         
-        # ----------------------------- ENTRIES -----------------------------------
+        # ----------------------------- ENTRIES -----------------------------------#
         # Entry styles
         self.style.configure('TEntry',
             fieldbackground=colors['surface'],
@@ -353,7 +359,7 @@ class MainWindow(tk.Tk):
             bordercolor=colors['secondary_accent'],
             insertcolor=colors['text'])
 
-        # ----------------------------- CHECKBOXES ---------------------------------
+        # ----------------------------- CHECKBOXES --------------------------------#
         # Checkbox styles (Normal, Status, Warning)
         self.style.configure('Normal.TCheckbutton',            
             foreground=colors['text'],
@@ -378,7 +384,7 @@ class MainWindow(tk.Tk):
             ('selected', '#DC3545')  # Brighter red color when checked
         ])
         
-        # -------------------------- PROGRESS BARS -------------------------------
+        # --------------------------- PROGRESS BARS -------------------------------#
         # Progress bar styles
         self.style.configure('Normal.Horizontal.TProgressbar',
             troughcolor=colors['surface'],
@@ -410,7 +416,7 @@ class MainWindow(tk.Tk):
             lightcolor=colors['primary_accent'], 
             darkcolor=colors['primary_accent'])
 
-        # -------------------------- TEXT AREA -----------------------------------
+        # ----------------------------- TEXT AREA ------------------------------- #
         # Text widget styling
         text_config = {
             'background': colors['surface'],

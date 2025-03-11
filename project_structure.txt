@@ -1,0 +1,26 @@
+e:\Python_Apps\pdf_tools
+|-- README.md
+|-- assets
+    |-- PdfTools.ico
+    |-- PdfTools2.ico
+|-- compression_log.txt
+|-- gui
+    |-- __init__.py
+    |-- compression_ops.py
+    |-- main_window.py
+    |-- merging_ops.py
+    |-- ocr_ops.py
+    |-- splitting_ops.py
+    |-- utils.py
+|-- logic
+    |-- __init__.py
+    |-- compression.py
+    |-- help_window.py
+    |-- log_viewer.py
+    |-- merging.py
+    |-- ocr.py
+    |-- split.py
+|-- main.py
+|-- project_structure.txt
+|-- requirements.txt
+|-- structure_generator.py

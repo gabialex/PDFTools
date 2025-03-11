@@ -342,8 +342,7 @@ class MergingOps:
             # Get directory of first file if no output folder selected
             first_file = self.merge_files[0]
             default_output_folder = os.path.dirname(first_file)
-            #print(default_output_folder)
-            
+                        
             # === 1. ACTUAL WRITE TEST (not os.access) ===
             is_writable, error = is_directory_writable(default_output_folder)
             if not is_writable:

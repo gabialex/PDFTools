@@ -6,12 +6,7 @@ from tkinter import ttk, filedialog, messagebox
 import subprocess
 import time
 import platform
-try:
-    import win32print
-except ImportError:
-    if sys.platform == 'win32':
-        print("win32print module required for Windows printing")
-
+import win32print
 from logic.split import split_pdf
 from .utils import ToolTip, CustomText, format_time, truncate_path, truncate_filename
 
@@ -33,7 +28,6 @@ class SplittingOps:
         self.eta = "Calculating..."
         self.generated_files = []
         self.setup_variables()
-        self.print_manager = PrintManager(root, self)
 
     def setup_variables(self):
         self.split_files = []
@@ -111,7 +105,10 @@ class SplittingOps:
         text_frame = ttk.Frame(self.splitting_frame)
         text_frame.pack(fill="both", expand=True, pady=10, padx=10)
         self.log_area = CustomText(text_frame, height=LOG_AREA_HEIGHT, width=LOG_AREA_WIDTH, wrap="word", state="disabled", font=("Consolas", 9))
-        self.log_area.pack(side="left", fill="both", expand=True)          
+        self.log_area.pack(side="left", fill="both", expand=True)
+        scrollbar = ttk.Scrollbar(text_frame, orient="vertical", command=self.log_area.yview)
+        scrollbar.pack(side="right", fill="y")
+        self.log_area.config(yscrollcommand=scrollbar.set)      
 
         # Adding a vertical scrollbar for the text area
         scrollbar = ttk.Scrollbar(text_frame, orient="vertical", command=self.log_area)
@@ -124,7 +121,7 @@ class SplittingOps:
         self.open_output_folder_button = ttk.Button(post_split_frame, text="Open Output Folder", command=self.open_output_folder, state=tk.DISABLED)
         self.open_output_folder_button.pack(side="left", padx=5)
         ToolTip(self.open_output_folder_button, "Open the output folder in file explorer")
-        self.print_split_files_button = ttk.Button(post_split_frame, text="Print Split Pages", command=self.print_manager.show_print_dialog, state=tk.DISABLED)
+        self.print_split_files_button = ttk.Button(post_split_frame, text="Print Split Pages", command=self._show_print_options, state=tk.DISABLED)
         self.print_split_files_button.pack(side="left", padx=5)
         ToolTip(self.print_split_files_button, "Print selected split pages with options")
 
@@ -323,7 +320,8 @@ class SplittingOps:
 
         # Change progress bar style based on compression
         if self.compress_after_split_var.get():
-            self.progress.config(style='Compress.Horizontal.TProgressbar')                
+            self.progress.config(style='Compress.Horizontal.TProgressbar')
+                
         
         # Calculate ETA only after first page to avoid division by zero
         if current_page > 1:
@@ -371,49 +369,8 @@ class SplittingOps:
         )
         self.split_status_label_selected.config(text="Critical error occurred")
 
-    def _reset_ui_state(self):
-        """Check ACTUAL file existence for UI state"""
-        existing_files = [f for f in self.generated_files if os.path.exists(f)]
-        has_available_files = len(existing_files) > 0
-        
-        self.print_split_files_button.config(state=tk.NORMAL if has_available_files else tk.DISABLED)
-        self.open_output_folder_button.config(state=tk.NORMAL if has_available_files else tk.DISABLED)
-        self.start_split_button.config(state=tk.NORMAL if (self.split_file and self.split_output_folder) else tk.DISABLED)
-        
-        # Update status label with availability info
-        status_text = (
-            f"Ready - {len(existing_files)}/{len(self.generated_files)} files available"
-            if self.generated_files else 
-            "Ready for new operation"
-        )
-        self.split_status_label_selected.config(text=status_text, style = "")
-        
-        # Reset progress bar
-        self.progress["value"] = 0
-        self.progress_percentage_label.config(text="0%", style = "")
+    # --------------------------- PRINTING JOBS ----------------------------------
 
-class PrintManager:
-    """Handles all printing operations for split PDF files.    
-    Attributes:
-        root (Tk): Main application window
-        splitting_ops (SplittingOps): Reference to parent splitting operations
-    """
-
-    def __init__(self, root, splitting_ops):
-        self.root = root
-        self.splitting_ops = splitting_ops  # Reference to parent class
-        self._setup_variables()
-        
-    def _setup_variables(self):
-        """Initialize printing-related variables"""
-        self.page_range_var = tk.StringVar(value="all")
-        self.page_filter_var = tk.StringVar(value="all")     
-        self.collate_var = tk.BooleanVar(value=True)
-        self.duplex_var = tk.BooleanVar(value=False)
-        self.printer_var = tk.StringVar()
-        self.range_entry = None  # Will be initialized in dialog
-
-    # -------------------- Core Printing Functionality --------------------
     def get_available_printers(self):
         """Get a list of available printers based on the OS."""
         system = platform.system()
@@ -428,7 +385,7 @@ class PrintManager:
             except Exception as e:
                 print(f"Error detecting printers on Windows: {e}")
 
-        elif sys.platform in ["darwin", "linux"]: # macOS or Linux
+        elif system in ["Darwin", "Linux"]:  # macOS or Linux
             try:
                 result = subprocess.run(["lpstat", "-a"], capture_output=True, text=True)
                 if result.returncode == 0:
@@ -440,8 +397,8 @@ class PrintManager:
             print(f"Unsupported OS: {system}")
 
         return printers
-    
-    def show_print_dialog(self):
+
+    def _show_print_options(self):
         """Show print options in a popup dialog with improved layout and additional options."""
         dialog = tk.Toplevel(self.root)
         dialog.title("Print Options")
@@ -478,7 +435,7 @@ class PrintManager:
             state="readonly"
         )
         printer_combo.pack(fill="x", padx=10, pady=5)
-        printer_combo.current(1)  # Select the second printer by default
+        printer_combo.current(0)  # Select the first printer by default
 
         # Range selection
         range_frame = ttk.LabelFrame(dialog, text="Page Range", padding=10)
@@ -560,11 +517,76 @@ class PrintManager:
             button_frame,
             text="Cancel",
             command=dialog.destroy
-        ).pack(side="left", padx=5)    
+        ).pack(side="left", padx=5)
+
+    def _validate_page_range(self, page_range):
+        """Validate that the page range is within the bounds of generated files."""
+        if not page_range:
+            return False  # Empty range is invalid
+        
+        max_index = len(self.generated_files) - 1
+        for page in page_range:
+            if page < 0 or page > max_index:
+                return False  # Page index out of range
+        return True
+
+    def _parse_page_range(self, page_range, custom_range):
+        """Parse and validate the page range input."""
+        if page_range == "all":
+            return list(range(len(self.generated_files)))
+        
+        if not custom_range:
+            messagebox.showwarning("Invalid Range", "Please enter a custom range.")
+            return None  # Return None to indicate an error
+        
+        try:
+            parts = custom_range.split(",")
+            pages = set()
+            for part in parts:
+                part = part.strip()  # Remove any whitespace
+                if "-" in part:
+                    start, end = map(int, part.split("-"))
+                    if start > end:
+                        messagebox.showwarning("Invalid Range", "Start page cannot be greater than end page.")
+                        return None  # Return None to indicate an error
+                    pages.update(range(start - 1, end))  # Convert to 0-based index
+                else:
+                    pages.add(int(part) - 1)  # Convert to 0-based index
+            return sorted(pages)
+        except ValueError:
+            messagebox.showerror("Invalid Range", "Please enter a valid page range (e.g., 1-5, 7, 9-12).")
+            return None  # Return None to indicate an error
+        
+    def _apply_page_filter(self, page_range, page_filter):
+        """Apply odd/even filter to the page range."""
+        if page_filter == "all":
+            return [self.generated_files[i] for i in page_range]
+        
+        filtered = []
+        for i in page_range:
+            if (page_filter == "odd" and i % 2 == 0) or \
+            (page_filter == "even" and i % 2 == 1):
+                filtered.append(self.generated_files[i])
+        return filtered
+
+    def _handle_print(self, dialog):
+        """Handle printing after options are selected."""
+        # Get selected options from the dialog
+        page_range = self.page_range_var.get()
+        custom_range = self.range_entry.get() if page_range == "range" else None
+        page_filter = self.page_filter_var.get()
+        collate = self.collate_var.get()
+        duplex = self.duplex_var.get()
+        
+        # Close the dialog
+        dialog.destroy()
+        
+        # Call print_split_files with the selected options
+        self.print_split_files(page_range, custom_range, page_filter, collate, duplex)
 
     def print_split_files(self, page_range="all", custom_range=None, page_filter="all", collate=True, duplex=False):
         """Print selected pages with options and validation checks."""
-        if not self.splitting_ops.generated_files:
+        if not self.generated_files:
             messagebox.showwarning("Error", "No split files available for printing")
             return
 
@@ -572,11 +594,7 @@ class PrintManager:
         printer = self.printer_var.get()
         if not printer:
             messagebox.showwarning("No Printer", "No printer selected.")
-            self.show_print_dialog()  # Reopen dialog on no printer
-            return
-        
-        if printer not in self.get_available_printers():
-            messagebox.showerror("Printer Offline", f"{printer} is not available")
+            self._show_print_options()  # Reopen dialog on no printer
             return
 
         # Flag to control dialog reopening
@@ -614,14 +632,14 @@ class PrintManager:
 
         # Reopen dialog if any error occurred
         if reopen_dialog:
-            self.show_print_dialog()
+            self._show_print_options()
             return
 
         # Print the files
         successfully_printed = 0
         for file_path in filtered_files:
             if not os.path.exists(file_path):
-                self.splitting_ops.append_log(f"⚠️ Missing: {os.path.basename(file_path)}")
+                self.append_log(f"⚠️ Missing: {os.path.basename(file_path)}")
                 continue
 
             try:
@@ -634,10 +652,10 @@ class PrintManager:
                 
                 successfully_printed += 1
                 filename = os.path.basename(file_path)
-                self.splitting_ops.append_log(f" • {truncate_filename(filename, '...', 30)} sent to {printer}")
+                self.append_log(f" • {truncate_filename(filename, '...', 30)} sent to {printer}")
                 time.sleep(0.5)
             except Exception as e:
-                self.splitting_ops.append_log(f"❌ Failed {filename}: {str(e)}")
+                self.append_log(f"❌ Failed {filename}: {str(e)}")
 
         # Show summary
         msg = (
@@ -651,63 +669,23 @@ class PrintManager:
         )
         messagebox.showinfo("Print Complete", msg)
 
-    # ----------------------- Helper Methods ------------------------#
-    def _handle_print(self, dialog):
-        """Handle printing after options are selected."""
-        # Get selected options from the dialog
-        page_range = self.page_range_var.get()
-        custom_range = self.range_entry.get() if page_range == "range" else None
-        page_filter = self.page_filter_var.get()
-        collate = self.collate_var.get()
-        duplex = self.duplex_var.get()
+    def _reset_ui_state(self):
+        """Check ACTUAL file existence for UI state"""
+        existing_files = [f for f in self.generated_files if os.path.exists(f)]
+        has_available_files = len(existing_files) > 0
         
-        # Close the dialog
-        dialog.destroy()
+        self.print_split_files_button.config(state=tk.NORMAL if has_available_files else tk.DISABLED)
+        self.open_output_folder_button.config(state=tk.NORMAL if has_available_files else tk.DISABLED)
+        self.start_split_button.config(state=tk.NORMAL if (self.split_file and self.split_output_folder) else tk.DISABLED)
         
-        # Call print_split_files with the selected options
-        self.print_split_files(page_range, custom_range, page_filter, collate, duplex)
-
-    def _parse_page_range(self, page_range, custom_range):
-        """Parse and validate the page range input."""
-        if page_range == "all":
-            return list(range(len(self.splitting_ops.generated_files)))
+        # Update status label with availability info
+        status_text = (
+            f"Ready - {len(existing_files)}/{len(self.generated_files)} files available"
+            if self.generated_files else 
+            "Ready for new operation"
+        )
+        self.split_status_label_selected.config(text=status_text, style = "")
         
-        if not custom_range:
-            messagebox.showwarning("Invalid Range", "Please enter a custom range.")
-            return None  # Return None to indicate an error
-        
-        try:
-            parts = custom_range.split(",")
-            pages = set()
-            for part in parts:
-                part = part.strip()  # Remove any whitespace
-                if "-" in part:
-                    start, end = map(int, part.split("-"))
-                    if start > end:
-                        messagebox.showwarning("Invalid Range", "Start page cannot be greater than end page.")
-                        return None  # Return None to indicate an error
-                    pages.update(range(start - 1, end))  # Convert to 0-based index
-                else:
-                    pages.add(int(part) - 1)  # Convert to 0-based index
-            return sorted(pages)
-        except ValueError:
-            messagebox.showerror("Invalid Range", "Please enter a valid page range (e.g., 1-5, 7, 9-12).")
-            return None  # Return None to indicate an error
-        
-    def _apply_page_filter(self, page_range, page_filter):
-        """Apply odd/even filter to the page range."""
-        if page_filter == "all":
-            return [self.splitting_ops.generated_files[i] for i in page_range]
-        
-        filtered = []
-        for i in page_range:
-            if (page_filter == "odd" and i % 2 == 0) or \
-            (page_filter == "even" and i % 2 == 1):
-                filtered.append(self.splitting_ops.generated_files[i])
-        return filtered
-    
-    def _validate_page_range(self, page_range):
-        """Validate that the page range is within the bounds of generated files."""
-        if not isinstance(page_range, (list, tuple)):
-            return False
-        return all(0 <= p < len(self.splitting_ops.generated_files) for p in page_range)        
+        # Reset progress bar
+        self.progress["value"] = 0
+        self.progress_percentage_label.config(text="0%", style = "")    
