@@ -301,7 +301,7 @@ class SplittingOps:
             self.print_manager = PrintManager(
                 self.root,
                 self.generated_files,
-                self.append_log
+                lambda msg: self.append_log(msg)  # Explicit single-arg version
             )
             self._handle_split_success(summary)
         else:

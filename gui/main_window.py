@@ -234,17 +234,15 @@ class MainWindow(tk.Tk):
             font=("Segoe UI Semibold", 9))
         
         self.style.configure('Orange.TLabel',
+            foreground='#E05232',
             bordercolor=colors['secondary_accent'],
-            highlightbackground="#FF8C00",
-            background='#FFA500' if self.current_theme == 'light' else '#FF8C00',  # Orange shades
-            thickness=1,
-            relief="sunken",
-            font=("Segoe UI", 9))
+            highlightbackground="#2C2C2C",
+            #background='gray' if self.current_theme == 'light' else '#FF8C00',  # Orange shades
+            font=("Segoe UI Semibold", 9))
         
-        self.style.configure('Warning.TLabel',
-            background=colors['background'],
+        self.style.configure('Warning.TLabel',            
             foreground='#DC3545' if self.current_theme == 'light' else '#FF4C4C',  # Red shades for warnings
-            font=("Segoe UI", 9))
+            font=("Segoe UI Semibold", 9))
         
         # ----------------------------- BUTTONS --------------------------- #
         

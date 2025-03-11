@@ -10,7 +10,11 @@ e:\Python_Apps\pdf_tools
     |-- main_window.py
     |-- merging_ops.py
     |-- ocr_ops.py
+    |-- print_manager.py
+    |-- printing
+        |-- print_manager.py
     |-- splitting_ops.py
+    |-- splitting_ops_CV.py
     |-- utils.py
 |-- logic
     |-- __init__.py
@@ -22,5 +26,6 @@ e:\Python_Apps\pdf_tools
     |-- split.py
 |-- main.py
 |-- project_structure.txt
+|-- requirements.in
 |-- requirements.txt
 |-- structure_generator.py

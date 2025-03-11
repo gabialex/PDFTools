@@ -212,6 +212,15 @@ class PrintManager:
             page_range = self._parse_page_range(page_range, custom_range)
             if page_range is None:
                 reopen_dialog = True  # Set flag for invalid range
+
+        except Exception as e:
+            # Handle logging callback signature differences
+            try:
+                self.log_callback(f"Print error: {str(e)}", "error")
+            except TypeError:
+                # Fallback for callbacks without message_type parameter
+                self.log_callback(f"Print error: {str(e)}")
+                
         except Exception as e:
             messagebox.showerror("Invalid Range", f"Error parsing page range: {str(e)}")
             reopen_dialog = True  # Set flag for parsing error
@@ -246,7 +255,7 @@ class PrintManager:
         successfully_printed = 0
         for file_path in filtered_files:
             if not os.path.exists(file_path):
-                self.log_callback(f"⚠️ Missing: {os.path.basename(file_path)}")
+                self.log_callback(f"⚠️ Missing: {os.path.basename(file_path)}", "error")
                 continue
 
             try:
@@ -259,10 +268,10 @@ class PrintManager:
                 
                 successfully_printed += 1
                 filename = os.path.basename(file_path)
-                self.log_callback(f" • {truncate_filename(filename, '...', 30)} sent to {printer}")
+                self.log_callback(f" • {truncate_filename(filename, '...', 30)} sent to {printer}", "succes")
                 time.sleep(0.5)
             except Exception as e:
-                self.log_callback(f"❌ Failed {filename}: {str(e)}")
+                self.log_callback(f"❌ Failed {filename}: {str(e)}", "error")
 
         # Show summary
         msg = (

@@ -10,11 +10,11 @@ import platform
 import subprocess
 import time
 import datetime
-import uuid
 
 from gui.utils import ToolTip, CustomText
 from logic.ocr import ocr_pdf
 from .utils import is_directory_writable, truncate_filename
+from .print_manager import PrintManager 
 
 class OCROpsFrame(ttk.Frame):
     def __init__(self, parent, controller):
@@ -32,6 +32,9 @@ class OCROpsFrame(ttk.Frame):
         self.ocr_thread = None
         self.cancelled = False
         self.currently_processing = False 
+        # Printing
+        self.print_manager = None  
+        self.ocr_output_files = []  # To store OCR results
 
         # Pause state variables
         self.pause_event = threading.Event()
@@ -70,7 +73,7 @@ class OCROpsFrame(ttk.Frame):
         self.setup_action_buttons()
         self.setup_selected_label()         
         self.setup_text_and_sb_frame()
-        self.setup_open_folder_btn()        
+        self.post_ocr_ops()        
 
     # ---------------------------------- UI Setup Methods ---------------------
     def setup_ocr_header(self):
@@ -124,60 +127,53 @@ class OCROpsFrame(ttk.Frame):
         ToolTip(output_btn, "Select custom output directory for OCR results")
 
     def setup_pb_frames_and_label(self):        
-        progress_frame = ttk.Frame(self.ocr_frame)
-        progress_frame.pack(fill="both", pady=18, padx=5)        
+        self.per_file_progress_frame = ttk.Frame(self.ocr_frame)
+        self.per_file_progress_frame.pack(pady=10, padx=5)        
 
-        # Modified per-file progress text
+        # Per-file progress text
         self.per_file_progress_text = ttk.Label(
-            progress_frame, 
-            text="Current File",  
-            style="Blue.TLabel"
+            self.per_file_progress_frame, 
+            text="",  
+            style="Orange.TLabel",
         )
-        self.per_file_progress_text.pack(pady=0)
+        self.per_file_progress_text.pack(pady=0)        
 
         # Progress Bar for File Completion (Per-File)
-        self.per_file_progress_bar = ttk.Progressbar(progress_frame, 
+        self.per_file_progress_bar = ttk.Progressbar(self.per_file_progress_frame, 
             orient="horizontal", length=300, mode="determinate")
         self.per_file_progress_bar.config(style='Compress.Horizontal.TProgressbar')
-        self.per_file_progress_bar.pack(pady=0)            
-        
-        # Modified total progress text
-        self.total_progress_text = ttk.Label(
-            progress_frame, 
-            text="Total Progress",
-            style="Blue.TLabel"
-        )
-        self.total_progress_text.pack(pady=0)
+        self.per_file_progress_bar.pack(side="left", padx=5, pady=0)
+
+        # Per-file percent text
+        self.per_file_percentage_label = ttk.Label(self.per_file_progress_frame, text="0%", style='Orange.TLabel')
+        self.per_file_percentage_label.pack(side="left", padx=5)
 
         # Progress Bar for Total Completion (Across All Files)
-        self.total_progress_bar = ttk.Progressbar(progress_frame, 
-            orient="horizontal", length=300, mode='determinate')
-        self.total_progress_bar.pack(pady=0, padx=5)
-        self.total_progress_bar.config(style='Normal.Horizontal.TProgressbar')    
+        self.total_progress_frame = ttk.Frame(self.ocr_frame)
+        self.total_progress_frame.pack(pady=0, padx=5)
 
-    def setup_text_and_sb_frame(self):
-        # Create a frame to hold the text widget and scrollbar
-        text_frame = ttk.Frame(self.ocr_frame)
-        text_frame.pack(fill="both", expand=True, pady=15, padx=10)
+        # Total progress text
+        self.total_progress_text = ttk.Label(
+            self.total_progress_frame, 
+            text="",
+            style="Blue.TLabel"
+        )
+        self.total_progress_text.pack(pady=0)    
 
-        # Scrollable Text Widget for displaying messages
-        self.message_text = CustomText(
-            text_frame, 
-            height=36, 
-            width=46, 
-            wrap="word", 
-            state="disabled")
-        self.message_text.pack(side="left", fill="both", pady=1, expand=True)
+        # Progress Bar for Total Files Completion
+        self.total_progress_bar = ttk.Progressbar(self.total_progress_frame, 
+            orient="horizontal", length=300, mode='determinate')        
+        self.total_progress_bar.config(style='Normal.Horizontal.TProgressbar')
+        self.total_progress_bar.pack(side="left", pady=0, padx=5)
 
-        # Adding a vertical scrollbar for the text area
-        scrollbar = ttk.Scrollbar(text_frame, orient="vertical", command=self.message_text.yview)
-        scrollbar.pack(side="right", fill="y")
-        self.message_text.config(yscrollcommand=scrollbar.set)
+        # Total percent text
+        self.total_percentage_label = ttk.Label(self.total_progress_frame, text="0%", style="Blue.TLabel")
+        self.total_percentage_label.pack(side="left", padx=5)
 
     def setup_action_buttons(self):
         """Run OCR button setup with an initial disabled state."""
         action_buttons_frame = ttk.Frame(self.ocr_frame)
-        action_buttons_frame.pack(pady=10)        
+        action_buttons_frame.pack(pady=20)        
 
         # Run OCR button
         self.run_button = ttk.Button(
@@ -207,20 +203,56 @@ class OCROpsFrame(ttk.Frame):
             state="disabled"
         )
         self.cancel_button.pack(side="left", padx=5)
-        ToolTip(self.cancel_button, "Cancel all OCR operations", delay=500)
+        ToolTip(self.cancel_button, "Cancel all OCR operations", delay=500)    
 
-    def setup_open_folder_btn(self):
+    def setup_text_and_sb_frame(self):
+        # Create a frame to hold the text widget and scrollbar
+        text_frame = ttk.Frame(self.ocr_frame)
+        text_frame.pack(fill="both", expand=True, pady=15, padx=10)
+
+        # Scrollable Text Widget for displaying messages
+        self.message_text = CustomText(
+            text_frame, 
+            height=36, 
+            width=46, 
+            wrap="word", 
+            state="disabled")
+        self.message_text.pack(side="left", fill="both", pady=1, expand=True)
+
+        # Adding a vertical scrollbar for the text area
+        scrollbar = ttk.Scrollbar(text_frame, orient="vertical", command=self.message_text.yview)
+        scrollbar.pack(side="right", fill="y")
+        self.message_text.config(yscrollcommand=scrollbar.set)    
+
+    def post_ocr_ops(self):
         # Add Open Folder button under the text area
-        self.open_output_folder_frame = ttk.Frame(self.ocr_frame)
-        self.open_output_folder_frame.pack(pady=5)
+        self.post_ocr_ops_frame = ttk.Frame(self.ocr_frame)
+        self.post_ocr_ops_frame.pack(pady=5)
 
+        # Open Output Folder button
         self.open_folder_btn = ttk.Button(
-            self.open_output_folder_frame,
+            self.post_ocr_ops_frame,
             text="Open Output Folder",
             command=self.open_output_folder
         )
-        self.open_folder_btn.pack(pady=5)
+        self.open_folder_btn.pack(side='left', pady=5, padx=5)
         ToolTip(self.open_folder_btn, "Open the output folder in file explorer")
+
+        # Print button
+        self.print_button = ttk.Button(
+            self.post_ocr_ops_frame,
+            text="Print OCR Results",
+            command=self._handle_print_button,
+            state="disabled"
+        )
+        self.print_button.pack(side='left', pady=5, padx=5)
+        ToolTip(self.print_button, "Print OCR results")
+
+    def _handle_print_button(self):
+        if self.print_manager:
+            self.print_manager.show_print_dialog()
+        else:
+            messagebox.showwarning("No Files", "No OCR results available to print")
 
     def select_output_folder(self):
         """Handle output directory selection."""
@@ -383,6 +415,10 @@ class OCROpsFrame(ttk.Frame):
         self.total_progress_bar["value"] = 0
         self.per_file_progress_text.config(text="Cancelled")
         self.total_progress_text.config(text="Cancelled")
+
+        # Disable print button if no results
+        if not self.ocr_output_files:
+            self.print_button.config(state="disabled")
 
         return was_cancelled  # Return whether it was cancelled
 
@@ -555,6 +591,7 @@ class OCROpsFrame(ttk.Frame):
             self.run_button.config(state="normal") 
 
     def process_files(self, file_paths, language):
+        self.ocr_output_files = []  # Reset previous results
         # Reset labels at start
         self.after(0, lambda: self.per_file_progress_text.config(
             text="| ETR:"
@@ -637,6 +674,7 @@ class OCROpsFrame(ttk.Frame):
                     language,
                     lambda curr, total, name=filename: self.update_progress(curr, total, name) or (self.cancelled and 
                      self._handle_cancellation_during_processing(name)))
+                self.ocr_output_files.append(final_path)  # Track output file
                 
                 processed_count += 1
                 self.after(0, self.update_total_progress, processed_count, total_files)
@@ -691,11 +729,22 @@ class OCROpsFrame(ttk.Frame):
             if permission_errors:
                 self.after(0, self.show_permission_errors_warning, permission_errors)
 
-            # Reset progress bars
+            # Initialize PrintManager if we have results
+            if not was_cancelled and self.ocr_output_files:
+                self.print_manager = PrintManager(
+                    self.winfo_toplevel(),  # Get root window
+                    self.ocr_output_files,
+                    lambda msg: self._update_message_internal(msg, "info")  # with default type
+                )
+                self.print_button.config(state="normal")
+
+            # Reset progress bars and labels
             self.per_file_progress_bar["value"] = 0
             self.total_progress_bar["value"] = 0
             self.per_file_progress_text.config(text=f"All done")
             self.total_progress_text.config(text=f"All done")
+            self.per_file_percentage_label.config(text="0%", style = "Orange.TLabel")
+            self.total_percentage_label.config(text="0%", style = "Blue.TLabel")
             
             self.selected_files_label.config(
                 text=f"{processed_count} PDFs processed. Select new files to continue.")
@@ -846,16 +895,18 @@ class OCROpsFrame(ttk.Frame):
         total_files = self.total_progress_bar['maximum']
         total_elapsed = self.get_elapsed_time()
         total_etr = self.calculate_etr(total_processed, total_files, total_elapsed)
-        total_percent = int((total_processed / total_files) * 100) if total_files > 0 else 0        
+        #total_percent = int((total_processed / total_files) * 100) if total_files > 0 else 0        
 
         # Update labels with captured values        
-        self.after(0, lambda p=percent, fe=file_etr: self.per_file_progress_text.config(
-            text=f"{truncate_filename(current_file, '...', 35) } {p}% | ETR: {fe}"))           
+        self.after(0, lambda fe=file_etr: self.per_file_progress_text.config(
+            text=f"{truncate_filename(current_file, '...', 30) } | ETR: {fe}"))
+        self.after(0, lambda p=percent: self.per_file_percentage_label.config(text=f"{p}%"))        
         
         # Update total progress text
-        total_percent = int((self.total_progress_bar['value']/self.total_progress_bar['maximum'])*100)
-        self.after(0, lambda tp=total_percent, te=total_etr: self.total_progress_text.config(
-        text=f"Total Progress: {tp}% | ETA: {te}"))          
+        #total_percent = int((self.total_progress_bar['value']/self.total_progress_bar['maximum'])*100)
+        self.after(0, lambda te=total_etr: self.total_progress_text.config(
+        text=f"Total Progress | ETA: {te}"))
+        
         
         # Update progress text
         percent = int((current_page / total_pages) * 100) if total_pages > 0 else 0
@@ -887,9 +938,7 @@ class OCROpsFrame(ttk.Frame):
         self.message_text.delete(self.current_progress_start, self.current_progress_end)
         
         # Insert new progress text
-        self.message_text.insert(self.current_progress_start, 
-                               f"{progress_text}\n", 
-                               "progress")
+        self.message_text.insert(self.current_progress_start, f"{progress_text}\n", "progress")
         
         # Update end position
         self.current_progress_end = self.message_text.index(
@@ -904,3 +953,4 @@ class OCROpsFrame(ttk.Frame):
         total_percent = int((value / total_files) * 100) if total_files > 0 else 0
         self.total_progress_text.config(text=f"Total progress: {value}/{total_files} ({total_percent}%)")
         self.total_progress_bar.update_idletasks()  # Consistent with other updates
+        self.after(0, lambda tp=total_percent: self.total_percentage_label.config(text=f"{tp}%"))
