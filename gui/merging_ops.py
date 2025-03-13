@@ -40,6 +40,7 @@ class MergingOps:
         self.setup_delete_originals_lbl()
         self.setup_output_controls()
         self.setup_progress_indicators()
+        self.setup_start_merging_button()
         self.setup_merge_status_label()        
         self.setup_log_area()    
         self.setup_post_merge_controls()
@@ -59,16 +60,7 @@ class MergingOps:
             command=self.select_merge_files
         )
         self.select_merge_files_button.pack(pady=20)
-        ToolTip(self.select_merge_files_button, "Select multiple PDF files to merge.")
-
-    def setup_merge_status_label(self):
-        # Selected files counter
-        self.merge_status_label = ttk.Label(
-            self.merging_frame,
-            text="Select at least 2 PDFs to merge",            
-            wraplength=400
-        )
-        self.merge_status_label.pack(pady=10)
+        ToolTip(self.select_merge_files_button, "Select multiple PDF files to merge.")   
 
     def setup_compression_options(self):
         """Compression-related controls."""
@@ -126,7 +118,7 @@ class MergingOps:
         self.output_filename_frame.pack(pady=3)
 
         #Label
-        ttk.Label(self.output_filename_frame, text = "Name your filename ").pack(side='left', pady=5)
+        ttk.Label(self.output_filename_frame, text = "Name for merged file ").pack(side='left', pady=5)
 
         #Entry
         self.output_name_var = tk.StringVar(value="merged_file.pdf")
@@ -155,16 +147,29 @@ class MergingOps:
         self.progress_percentage_label = ttk.Label(self.merge_progress_frame, text="0%")
         self.progress_percentage_label.pack(side="left", padx=5)
 
-        # Action button
+    def setup_start_merging_button(self):
+        """ Start Merging Button"""
+        self.start_merge_frame = ttk.Frame(self.merging_frame)
+        self.start_merge_frame.pack(pady=0)
+        
         self.start_merge_button = ttk.Button(
-            self.merging_frame,
+            self.start_merge_frame,
             text="Start Merging",
             command=self.start_merge,
-            style="Red.TButton",
+            style="TButton",
             state=tk.DISABLED
         )
-        self.start_merge_button.pack(pady=10)
+        self.start_merge_button.pack(pady=5)
         ToolTip(self.start_merge_button, "Begin merging process")
+
+    def setup_merge_status_label(self):
+        # Selected files counter
+        self.merge_status_label = ttk.Label(
+            self.merging_frame,
+            text="Select at least 2 PDFs to merge",            
+            wraplength=400
+        )
+        self.merge_status_label.pack(pady=15)    
 
     def setup_log_area(self):
         """Unified logging area for merge operations."""
@@ -250,22 +255,31 @@ class MergingOps:
         if files:
             self.merge_files = list(files)
             self._update_selected_count(len(files))
-            self.start_merge_button.config(state=tk.NORMAL, style = 'Ready.TButton')
+
+            if len(self.merge_files) > 1:
+                self.select_output_folder_button.configure(state=tk.NORMAL, style="Ready.TButton")
+                self.start_merge_button.configure(state=tk.NORMAL, style="Ready.TButton") 
+
+            if len(self.merge_files) < 2:
+                messagebox.showwarning("Insufficient Files", "Select at least two PDF files to merge.")
+                self.select_merge_files()
+                return False            
+        
 
     def select_output_folder(self):
-        """Handle output folder selection."""
+        """Handle output folder selection."""        
         folder = filedialog.askdirectory(title="Select Output Folder")
         if folder:
             self.output_folder = folder
-            self.merge_status_label.config(text=f"Output folder: {folder}")
+            self.merge_status_label.config(style='Blue.TLabel', text=f"Output folder set: {folder}")
 
     def start_merge(self):
-        """Initiate merging process."""
+        """Initiate merging process."""        
         # Validate basic inputs first (files selected and PDF extension)
         if not self._validate_inputs():
             return
 
-        # Get output path - returns None if user cancels folder selection
+        # Get output path - returns None if user cancels folder selection        
         output_file = self._get_output_path()
         
         # Check if user canceled output path selection
@@ -310,7 +324,7 @@ class MergingOps:
     # --------------------- Helper Methods for Merging---------------------
     def _update_selected_count(self, count):
         """Update selected files counter."""
-        self.merge_status_label.config(text=f"{count} PDF files selected")
+        self.merge_status_label.config(style='Blue.TLabel', text=f"{count} PDF files selected")
         self.merge_progress.config(maximum=count)
 
     def _validate_inputs(self):
@@ -318,10 +332,6 @@ class MergingOps:
         if not self.merge_files:
             messagebox.showwarning("No Files", "Select PDF files to merge first")
             return False 
-        
-        if len(self.merge_files) < 2:
-            messagebox.showwarning("Insufficient Files", "Select at least two PDF files to merge.")
-            return False
         
         self.output_name = self.output_name_var.get()
         if not self.output_name_var.get().endswith(".pdf"):
@@ -382,11 +392,10 @@ class MergingOps:
         return True
 
     def _prepare_for_merge(self, output_file):
-        """Prepare UI for merging process."""
+        """Prepare UI for merging process."""        
         self.merged_file_path = output_file
         self.start_merge_button.config(state=tk.DISABLED)
-        self.merge_progress["value"] = 0        
-        
+        self.merge_progress["value"] = 0
 
     def _update_progress(self, current_file, progress):
         """Update progress indicators."""
@@ -404,9 +413,9 @@ class MergingOps:
 
     def _handle_merge_success(self, output_file, summary_data):
         """Handle successful merge with clean formatting."""        
-        self.open_merged_file_button.config(state=tk.NORMAL)
-        self.print_merged_file_button.config(state=tk.NORMAL)
-        self.open_output_folder_button.config(state=tk.NORMAL)
+        self.open_merged_file_button.config(state=tk.NORMAL, style='Ready.TButton')
+        self.print_merged_file_button.config(state=tk.NORMAL, style='Ready.TButton')
+        self.open_output_folder_button.config(state=tk.NORMAL, style='Ready.TButton')
         
         # Helper function for size formatting
         def format_size(bytes_size):

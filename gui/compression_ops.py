@@ -151,16 +151,29 @@ class CompressionOps:
         except tk.TclError:
             pass  # Ignore invalid intermediate states
 
+    def _confirm_deletion(self):
+        """Function to show confirmation dialog before deleting files."""
+        return messagebox.askokcancel("Confirm Deletion", 
+                                    "Are you sure you want to delete the original files? This action cannot be undone.")
+
     def setup_delete_originals(self):
-        """Checkbox for deleting original files."""
+        """Checkbox for deleting original files with confirmation dialog."""
         self.delete_originals_frame = ttk.Frame(self.compression_frame)
-        self.delete_originals_frame .pack(pady=5)
+        self.delete_originals_frame.pack(pady=5)
 
         self.delete_original_var = tk.BooleanVar()
-        cb = ttk.Checkbutton(self.delete_originals_frame, 
-                            text="Delete originals after compression", 
-                            variable=self.delete_original_var, style = 'Warning.TCheckbutton')
-        
+
+        def on_check():
+            if self.delete_original_var.get():  # If checkbox is checked
+                if not self._confirm_deletion():  # If user cancels in the confirmation dialog
+                    self.delete_original_var.set(False)  # Uncheck the box if deletion not confirmed
+
+        cb = ttk.Checkbutton(self.delete_originals_frame,
+                            text="Delete originals after compression",
+                            variable=self.delete_original_var, 
+                            command=on_check,  # Trigger on checking/unchecking
+                            style='Warning.TCheckbutton')
+
         cb.pack(pady=10)
         ToolTip(cb, "Permanently removes original files after successful compression")
 
@@ -186,7 +199,7 @@ class CompressionOps:
     def setup_action_buttons(self):
         """Start/Cancel buttons."""
         self.action_buttons_frame = ttk.Frame(self.compression_frame)
-        self.action_buttons_frame.pack(pady=13)
+        self.action_buttons_frame.pack(pady=15)
 
         self.start_button = ttk.Button(
             self.action_buttons_frame,
@@ -355,7 +368,7 @@ class CompressionOps:
         if count > 0:
             self.status_label.config(text = 
                                      f"{count} PDFs selected. Press Start Compression to proceed.", 
-                                     style = 'Status.TLabel')
+                                     style = 'Blue.TLabel')
             self.start_button.config(state=tk.NORMAL), 
             self.start_button.config(style = "Ready.TButton")    
         else:
@@ -558,7 +571,7 @@ class CompressionOps:
         self._finalize_compression(stats)
         
         # Safe status reset        
-        self.root.after(0, lambda: self.status_label.config(text="Status: Idle", style = ""))
+        self.root.after(0, lambda: self.status_label.config(style="Blue.TLabel", text="Ready. Select Folder of files to begin."))
         self.root.after(0, lambda: self.progress_percentage_label.config(text="0%"))
         self.progress["value"] = 0    
 
@@ -643,7 +656,7 @@ class CompressionOps:
         """Show formatted summary with proper number formatting"""
         self.start_button.config(state=tk.DISABLED, style='TButton')        
         self.cancel_button.config(state=tk.DISABLED, style='TButton')
-        self.open_folder_btn.config(state = tk.NORMAL, style='TButton')
+        self.open_folder_btn.config(state = tk.NORMAL, style='Ready.TButton')
 
         success_count = len(self.pdf_files) - stats['skipped']
         total_reduction_bytes = stats['original'] - stats['compressed']

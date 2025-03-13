@@ -10,6 +10,7 @@ import platform
 import subprocess
 import time
 import datetime
+import ctypes
 
 from gui.utils import ToolTip, CustomText
 from logic.ocr import ocr_pdf
@@ -97,12 +98,7 @@ class OCROpsFrame(ttk.Frame):
 
         # Tooltips for user guidance        
         ToolTip(browse_button, "Browse and select the PDF file", delay=500)
-        ToolTip(folder_button, "Browse and select a folder for batch OCR", delay=500)
-
-    def setup_selected_label(self):
-        # Selected files label
-        self.selected_files_label = ttk.Label(self.ocr_frame, text="")
-        self.selected_files_label.pack(pady=30)        
+        ToolTip(folder_button, "Browse and select a folder for batch OCR", delay=500)     
 
     def setup_ocr_language_selection(self):
         """Language selection for OCR."""
@@ -110,11 +106,17 @@ class OCROpsFrame(ttk.Frame):
         lang_frame.pack(pady=5)
         
         ttk.Label(lang_frame, text="Select OCR Language:").pack(side="left", padx=5)
-
         lang_combo = ttk.Combobox(lang_frame, textvariable=self.lang_var, values=["ron", "eng", "fra", "deu", "spa"], width=5)
-        lang_combo.pack(side="left", padx=5)
-
+        lang_combo.pack(side="left", padx=5)        
         ToolTip(lang_combo, "Language for OCR (Tesseract)", delay=500)
+
+        # Format selection
+        self.format_var = tk.StringVar(value="docx")
+        ttk.Label(lang_frame, text="Format:").pack(side="left", padx=5)
+        format_combo = ttk.Combobox(lang_frame, textvariable=self.format_var,
+                                values=["docx", "rtf"], width=5)
+        format_combo.pack(side="left", padx=5)        
+        ToolTip(format_combo, "Output file format", delay=500)
 
     def setup_output_directory_selector(self):
         """Add output directory selection components."""
@@ -123,19 +125,15 @@ class OCROpsFrame(ttk.Frame):
 
         # Output directory button
         output_btn = ttk.Button(output_frame, text="Select Output Folder", command=self.select_output_folder, style="Small.TButton")
-        output_btn.pack(pady=5)
+        output_btn.pack(pady=20)
         ToolTip(output_btn, "Select custom output directory for OCR results")
 
     def setup_pb_frames_and_label(self):        
         self.per_file_progress_frame = ttk.Frame(self.ocr_frame)
-        self.per_file_progress_frame.pack(pady=10, padx=5)        
+        self.per_file_progress_frame.pack(pady=0, padx=5)        
 
         # Per-file progress text
-        self.per_file_progress_text = ttk.Label(
-            self.per_file_progress_frame, 
-            text="",  
-            style="Orange.TLabel",
-        )
+        self.per_file_progress_text = ttk.Label(self.per_file_progress_frame, text="", style="Orange.TLabel")
         self.per_file_progress_text.pack(pady=0)        
 
         # Progress Bar for File Completion (Per-File)
@@ -145,7 +143,7 @@ class OCROpsFrame(ttk.Frame):
         self.per_file_progress_bar.pack(side="left", padx=5, pady=0)
 
         # Per-file percent text
-        self.per_file_percentage_label = ttk.Label(self.per_file_progress_frame, text="0%", style='Orange.TLabel')
+        self.per_file_percentage_label = ttk.Label(self.per_file_progress_frame, text="0%")
         self.per_file_percentage_label.pack(side="left", padx=5)
 
         # Progress Bar for Total Completion (Across All Files)
@@ -153,10 +151,7 @@ class OCROpsFrame(ttk.Frame):
         self.total_progress_frame.pack(pady=0, padx=5)
 
         # Total progress text
-        self.total_progress_text = ttk.Label(
-            self.total_progress_frame, 
-            text="",
-            style="Blue.TLabel"
+        self.total_progress_text = ttk.Label(self.total_progress_frame, text="", style="Blue.TLabel"
         )
         self.total_progress_text.pack(pady=0)    
 
@@ -167,13 +162,13 @@ class OCROpsFrame(ttk.Frame):
         self.total_progress_bar.pack(side="left", pady=0, padx=5)
 
         # Total percent text
-        self.total_percentage_label = ttk.Label(self.total_progress_frame, text="0%", style="Blue.TLabel")
+        self.total_percentage_label = ttk.Label(self.total_progress_frame, text="0%")
         self.total_percentage_label.pack(side="left", padx=5)
 
     def setup_action_buttons(self):
         """Run OCR button setup with an initial disabled state."""
         action_buttons_frame = ttk.Frame(self.ocr_frame)
-        action_buttons_frame.pack(pady=20)        
+        action_buttons_frame.pack(pady=35)        
 
         # Run OCR button
         self.run_button = ttk.Button(
@@ -203,7 +198,12 @@ class OCROpsFrame(ttk.Frame):
             state="disabled"
         )
         self.cancel_button.pack(side="left", padx=5)
-        ToolTip(self.cancel_button, "Cancel all OCR operations", delay=500)    
+        ToolTip(self.cancel_button, "Cancel all OCR operations", delay=500)
+
+    def setup_selected_label(self):
+        # Selected files label
+        self.selected_files_label = ttk.Label(self.ocr_frame, text="Select at least a PDF to OCR")
+        self.selected_files_label.pack(pady=10)           
 
     def setup_text_and_sb_frame(self):
         # Create a frame to hold the text widget and scrollbar
@@ -233,6 +233,7 @@ class OCROpsFrame(ttk.Frame):
         self.open_folder_btn = ttk.Button(
             self.post_ocr_ops_frame,
             text="Open Output Folder",
+            state="disabled",
             command=self.open_output_folder
         )
         self.open_folder_btn.pack(side='left', pady=5, padx=5)
@@ -249,10 +250,97 @@ class OCROpsFrame(ttk.Frame):
         ToolTip(self.print_button, "Print OCR results")
 
     def _handle_print_button(self):
-        if self.print_manager:
-            self.print_manager.show_print_dialog()
-        else:
-            messagebox.showwarning("No Files", "No OCR results available to print")
+        """Open native print dialogs for OCR results with full user control."""
+        if not self.ocr_output_files:
+            messagebox.showwarning("No Files", "No OCR results available to print.")
+            return
+
+        for file_path in self.ocr_output_files:
+            if not os.path.exists(file_path):
+                self.update_message(f"File not found: {file_path}", "error")
+                continue
+
+            try:
+                system = platform.system()
+                if system == "Windows":
+                    # Windows: Use system print dialog
+                    if os.path.splitext(file_path)[1].lower() == '.docx':
+                        # For Word documents use Word's print dialog
+                        self._windows_word_print(file_path)
+                    else:
+                        # Generic method for other formats
+                        ctypes.windll.shell32.ShellExecuteW(None, "print", file_path, None, None, 0)
+
+                elif system == "Darwin":
+                    # macOS: Use AppleScript to open print dialog
+                    self._macos_print(file_path)
+
+                else:  # Linux
+                    # Linux: Use xdg-open with xdotool for Ctrl+P
+                    self._linux_print(file_path)
+
+                self.update_message(f"Print dialog opened for: {os.path.basename(file_path)}", "success")
+
+            except Exception as e:
+                self.update_message(f"Print error: {str(e)}", "error")
+
+    def _windows_word_print(self, file_path):
+        """Windows-specific Word document printing."""
+        main_window = self.winfo_toplevel()
+        try:
+            import win32com.client
+            # Minimize the main window before showing the print dialog
+            main_window.iconify()
+            
+            word = win32com.client.Dispatch("Word.Application")
+            doc = word.Documents.Open(file_path)
+            word.Visible = True
+            # Show print dialog (wdDialogFilePrint = 88)
+            word.Dialogs(88).Show()
+            
+            # Restore the main window after the dialog is closed
+            main_window.deiconify()
+        except Exception as e:
+            # Ensure the window is restored even if an error occurs
+            main_window.deiconify()
+            # Fallback to system print dialog
+            ctypes.windll.shell32.ShellExecuteW(None, "print", file_path, None, None, 0)
+
+    def _macos_print(self, file_path):
+        """macOS-specific printing with AppleScript."""
+        script = f'''
+        tell application "Preview"
+            activate
+            open POSIX file "{file_path}"
+            delay 1  -- Allow time for file to open
+            tell application "System Events"
+                keystroke "p" using command down
+            end tell
+        end tell
+        '''
+        subprocess.run(['osascript', '-e', script])
+
+    def _linux_print(self, file_path):
+        """Linux printing with xdotool."""
+        try:
+            # Try to print via LibreOffice first
+            subprocess.run([
+                "libreoffice",
+                "--writer",
+                "--nologo",
+                "--norestore",
+                "--headless",
+                "--printer='Print Dialog'",
+                file_path
+            ])
+        except FileNotFoundError:
+            # Fallback to xdotool method
+            subprocess.Popen(["xdg-open", file_path])
+            time.sleep(1)  # Wait for document viewer to open
+            subprocess.run([
+                "xdotool", "search", "--name", os.path.basename(file_path),
+                "windowactivate", "key", "ctrl+p"
+            ])
 
     def select_output_folder(self):
         """Handle output directory selection."""
@@ -307,7 +395,7 @@ class OCROpsFrame(ttk.Frame):
         for pdf_path in self.file_paths:
             # Determine correct output directory
             output_dir = self.output_dir or os.path.dirname(pdf_path)
-            output_filename = f"OCR_{os.path.splitext(os.path.basename(pdf_path))[0]}.pdf.txt"
+            output_filename = f"OCR_{os.path.splitext(os.path.basename(pdf_path))[0]}.docx"
             output_path = os.path.join(output_dir, output_filename)
             
             if os.path.exists(output_path):
@@ -544,10 +632,10 @@ class OCROpsFrame(ttk.Frame):
         self.message_text.config(state="normal")
         
         # Configure tags
-        self.message_text.tag_configure("file_header", foreground="#2c7fb8", font=("Segoe UI", 10))
+        self.message_text.tag_configure("file_header", foreground="blue", font=("Segoe UI", 10))
         self.message_text.tag_configure("progress", font=("Segoe UI", 9))
         self.message_text.tag_configure("success", font=("Segoe UI", 10))
-        self.message_text.tag_configure("warning", foreground="#ff7f0e", font=("Segoe UI", 10))
+        self.message_text.tag_configure("warning", foreground="red", font=("Segoe UI", 10))
         self.message_text.tag_configure("error", foreground="#d62728", font=("Segoe UI", 10))
 
         # Insert message with appropriate tag
@@ -659,7 +747,7 @@ class OCROpsFrame(ttk.Frame):
                                      f"⚠️ Skipped {filename}: {error_msg}", "error")
                             continue
 
-                output_filename = f"OCR_{os.path.splitext(os.path.basename(pdf_path))[0]}.pdf.txt"
+                output_filename = f"OCR_{os.path.splitext(os.path.basename(pdf_path))[0]}.docx"
                 output_path = os.path.join(output_dir, output_filename)
 
                 # Skip existing files if not overwriting
@@ -668,12 +756,16 @@ class OCROpsFrame(ttk.Frame):
                     continue
 
                 # Process file with the determined output directory and cancellation support
+                language = self.lang_var.get()
+                output_format = self.format_var.get()  # Get selected format
                 final_path = ocr_pdf(
                     pdf_path,
                     output_dir,
                     language,
                     lambda curr, total, name=filename: self.update_progress(curr, total, name) or (self.cancelled and 
-                     self._handle_cancellation_during_processing(name)))
+                    self._handle_cancellation_during_processing(name)),
+                    output_format  # Pass format to OCR function
+                )
                 self.ocr_output_files.append(final_path)  # Track output file
                 
                 processed_count += 1
@@ -731,20 +823,16 @@ class OCROpsFrame(ttk.Frame):
 
             # Initialize PrintManager if we have results
             if not was_cancelled and self.ocr_output_files:
-                self.print_manager = PrintManager(
-                    self.winfo_toplevel(),  # Get root window
-                    self.ocr_output_files,
-                    lambda msg: self._update_message_internal(msg, "info")  # with default type
-                )
-                self.print_button.config(state="normal")
+                self.print_button.config(state="normal", style='Ready.TButton')
+                self.open_folder_btn.config(state="normal", style='Ready.TButton')
 
             # Reset progress bars and labels
             self.per_file_progress_bar["value"] = 0
             self.total_progress_bar["value"] = 0
             self.per_file_progress_text.config(text=f"All done")
             self.total_progress_text.config(text=f"All done")
-            self.per_file_percentage_label.config(text="0%", style = "Orange.TLabel")
-            self.total_percentage_label.config(text="0%", style = "Blue.TLabel")
+            self.per_file_percentage_label.config(text="0%", style = "")
+            self.total_percentage_label.config(text="0%", style = "")
             
             self.selected_files_label.config(
                 text=f"{processed_count} PDFs processed. Select new files to continue.")
@@ -834,7 +922,7 @@ class OCROpsFrame(ttk.Frame):
         self.processing_timers['current_file_start'] = time.time()
         self.processing_timers['current_file_paused'] = 0.0
 
-        self.selected_files_label.config(text=f"PROGRESS: {current_file}/{total_files}: {display_name}")
+        self.selected_files_label.config(text=f"Progress: {current_file}/{total_files}: {display_name}")
         """Update file processing header and initialize progress line"""
         header_text = f"\n{current_file}/{total_files} {display_name}"
         self._update_message_internal(header_text, "file_header")
@@ -900,11 +988,11 @@ class OCROpsFrame(ttk.Frame):
         # Update labels with captured values        
         self.after(0, lambda fe=file_etr: self.per_file_progress_text.config(
             text=f"{truncate_filename(current_file, '...', 30) } | ETR: {fe}"))
-        self.after(0, lambda p=percent: self.per_file_percentage_label.config(text=f"{p}%"))        
+        self.after(0, lambda p=percent: self.per_file_percentage_label.config(style='Orange.TLabel', text=f"{p}%"))        
         
         # Update total progress text
         #total_percent = int((self.total_progress_bar['value']/self.total_progress_bar['maximum'])*100)
-        self.after(0, lambda te=total_etr: self.total_progress_text.config(
+        self.after(0, lambda te=total_etr: self.total_progress_text.config(style='Blue.TLabel',
         text=f"Total Progress | ETA: {te}"))
         
         
@@ -953,4 +1041,4 @@ class OCROpsFrame(ttk.Frame):
         total_percent = int((value / total_files) * 100) if total_files > 0 else 0
         self.total_progress_text.config(text=f"Total progress: {value}/{total_files} ({total_percent}%)")
         self.total_progress_bar.update_idletasks()  # Consistent with other updates
-        self.after(0, lambda tp=total_percent: self.total_percentage_label.config(text=f"{tp}%"))
+        self.after(0, lambda tp=total_percent: self.total_percentage_label.config(style='Blue.TLabel', text=f"{tp}%"))

@@ -1,3 +1,4 @@
+#gui\print_manager.py
 import os
 import sys
 import platform
@@ -288,11 +289,17 @@ class PrintManager:
             try:
                 if sys.platform == "win32":
                     # Windows: Use the selected printer
-                    os.startfile(file_path, "print")
+                    import win32api
+                    win32api.ShellExecute(0, "print", file_path, f'/d:"{printer}"', None, 0)
                 else:
                     # macOS/Linux: Use the `lp` command with the selected printer
-                    subprocess.run(["lp", "-d", printer, file_path], check=True)
-                
+                    cmd = ["lp", "-d", printer]
+                    if self.duplex_var.get():
+                        cmd.extend(["-o", "sides=two-sided-long-edge"])
+                    if self.collate_var.get():
+                        cmd.extend(["-o", "collate=true"])
+                    subprocess.run(cmd + [file_path])
+                                    
                 successfully_printed += 1
                 filename = os.path.basename(file_path)
                 self.log_callback(f" • {truncate_filename(filename, '...', 30)} sent to {printer}")
@@ -362,8 +369,7 @@ class PrintManager:
         
         filtered = []
         for i in page_range:
-            if (page_filter == "odd" and i % 2 == 0) or \
-            (page_filter == "even" and i % 2 == 1):
+            if (page_filter == "odd" and (i + 1) % 2 == 1) or (page_filter == "even" and (i + 1) % 2 == 0):
                 filtered.append(self.files_to_print[i])
         return filtered
     
@@ -371,4 +377,4 @@ class PrintManager:
         """Validate that the page range is within the bounds of generated files."""
         if not isinstance(page_range, (list, tuple)):
             return False
-        return all(0 <= p < len(self.files_to_print) for p in page_range)  
+        return all(0 <= p < len(self.files_to_print) for p in page_range)

@@ -100,7 +100,7 @@ class SplittingOps:
         ToolTip(self.start_split_button, "Begin splitting process")
 
     def setup_split_status(self):
-        self.split_status_label_selected = ttk.Label(self.splitting_frame, text="Select a PDF file to begin", wraplength=400)
+        self.split_status_label_selected = ttk.Label(self.splitting_frame, text="Select a PDF to split", wraplength=400)
         self.split_status_label_selected.pack(pady=10)
 
     def setup_log_area(self):
@@ -226,10 +226,11 @@ class SplittingOps:
         
         if self.split_file:
             try:
+                self.select_split_output_folder_button.configure(style='Ready.TButton')
                 file_size = os.path.getsize(self.split_file)
                 mb_size = file_size / (1024 * 1024)
-                filename = os.path.basename(self.split_file)
-                truncated_file_line = truncate_filename(filename, '...', 45)
+                filename = os.path.basename(self.split_file)                
+                truncated_file_line = truncate_filename(filename, '...', 40)
                 file_line = f"  📄 {truncated_file_line} ({mb_size:.2f} MB)\n"
                 self.log_area.insert('end', file_line)
             except Exception as e:
@@ -238,6 +239,7 @@ class SplittingOps:
         # Show summary if both selected
         if self.split_file and self.split_output_folder:
             try:
+                self.split_status_label_selected.config(style='Blue.TLabel', text=f"{truncated_file_line} ready for spliting")
                 total_size = os.path.getsize(self.split_file) 
                 mb_total = total_size / (1024 * 1024)
                 summary = f"\nSelected 1 file ({mb_total:.2f} MB) for splitting"
@@ -381,17 +383,19 @@ class SplittingOps:
         existing_files = [f for f in self.generated_files if os.path.exists(f)]
         has_available_files = len(existing_files) > 0
         
-        self.print_split_files_button.config(state=tk.NORMAL if has_available_files else tk.DISABLED)
-        self.open_output_folder_button.config(state=tk.NORMAL if has_available_files else tk.DISABLED)
-        self.start_split_button.config(state=tk.NORMAL if (self.split_file and self.split_output_folder) else tk.DISABLED)
+        self.print_split_files_button.config(state=tk.NORMAL, style='Ready.TButton' 
+                                             if has_available_files else tk.DISABLED)
+        self.open_output_folder_button.config(state=tk.NORMAL, style='Ready.TButton' 
+                                              if has_available_files else tk.DISABLED)
+        self.start_split_button.config(state=tk.NORMAL 
+                                       if (self.split_file and self.split_output_folder) else tk.DISABLED)
         
         # Update status label with availability info
         status_text = (
             f"Ready - {len(existing_files)}/{len(self.generated_files)} files available"
-            if self.generated_files else 
-            "Ready for new operation"
+            if self.generated_files else "Ready for new operation"
         )
-        self.split_status_label_selected.config(text=status_text, style = "")
+        self.split_status_label_selected.config(text=status_text, style = "Blue.TLabel")
         
         # Reset progress bar
         self.progress["value"] = 0
