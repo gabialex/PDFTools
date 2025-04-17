@@ -1,3 +1,4 @@
+
 # logic/ocr.py
 import fitz  # PyMuPDF
 import pytesseract

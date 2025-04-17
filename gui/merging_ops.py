@@ -6,7 +6,6 @@ import traceback
 import subprocess
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
-#from datetime import datetime
 from threading import Lock
 import sys
 

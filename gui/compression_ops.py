@@ -545,8 +545,7 @@ class CompressionOps:
                     results.append((pdf_file, None))
 
             # Final UI updates after completion
-            self.root.after(0, self._show_final_results, results, stats)
-            
+            self.root.after(0, self._show_final_results, results, stats)            
 
     def _update_status(self, completed: int, total: int, active: int):
         """Enhanced status with active files"""

@@ -2,16 +2,15 @@
 import tkinter as tk
 from tkinter import ttk
 from typing import Dict, Any
-
 # Local imports
 from logic.log_viewer import view_logs
 from logic.help_window import open_help
 from .compression_ops import CompressionOps
 from .merging_ops import MergingOps
 from .splitting_ops import SplittingOps
+from .ocr_ops import OCROpsFrame
 from .utils import ToolTip
 from gui.utils import configure_tooltip_styles
-from .ocr_ops import OCROpsFrame
 
 class MainWindow(tk.Tk):
     def __init__(self):        
@@ -76,9 +75,9 @@ class MainWindow(tk.Tk):
         # Initialize operations
         self.compression_ops = CompressionOps(self)
         self.merging_ops = MergingOps(self)
-        self.splitting_ops = SplittingOps(self)
-        configure_tooltip_styles(self.style)
+        self.splitting_ops = SplittingOps(self)       
         self.ocr_ops = OCROpsFrame(self, controller=self)
+        configure_tooltip_styles(self.style)
         
         # Set initial theme
         self.current_theme = 'light'
@@ -102,14 +101,13 @@ class MainWindow(tk.Tk):
         self.main_frame = ttk.Frame(self, style='Main.TFrame')
         self.main_frame.pack(fill="both", expand=True, padx=20, pady=10)
 
-        # Left Column: Compress PDFs
+        # Column 1: Compress PDFs
         self.compression_ops.setup_compression_ui(self.main_frame)
-
-        # Right Column: Merge / Split PDFs
+        # Column 2: Merge / Split PDFs
         self.merging_ops.setup_merging_ui(self.main_frame)
+        # Colum 3: Splitting Ops
         self.splitting_ops.setup_splitting_ui(self.main_frame)
-
-        # OCR Column
+        # Column 4: OCR ops
         self.ocr_ops.setup_ocr_ui(self.main_frame)
 
     def setup_top_right_buttons(self):
