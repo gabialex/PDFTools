@@ -9,6 +9,7 @@ from tkinter import ttk, filedialog, messagebox
 from threading import Lock
 import sys
 
+# Local imports
 from logic.merging import merge_pdfs
 from .utils import ToolTip, CustomText
 from .utils import truncate_path, is_directory_writable
